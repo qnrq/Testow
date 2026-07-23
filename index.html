@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Cyberpunk Loading Screen — Media Vault</title>
+<link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <div class="cpls-root" id="cpls-root" role="status" aria-live="polite" aria-label="Loading">
+
+    <!-- 3D background: raw WebGL canvas, driven entirely by js/app.js -->
+    <div class="cpls-canvas-wrap">
+      <canvas id="cpls-canvas"></canvas>
+      <!-- Shown only if WebGL / the .glb parse fails; pure CSS, no library -->
+      <div class="cpls-fallback-orb" id="cpls-fallback-orb" aria-hidden="true">
+        <div class="ring"></div>
+        <div class="ring"></div>
+        <div class="ring"></div>
+      </div>
+    </div>
+
+    <!-- Holographic overlays -->
+    <div class="cpls-grid-overlay" aria-hidden="true"></div>
+    <div class="cpls-scanline-overlay" aria-hidden="true"></div>
+    <div class="cpls-noise-overlay" aria-hidden="true"></div>
+    <div class="cpls-vignette" aria-hidden="true"></div>
+
+    <!-- Foreground HUD -->
+    <div class="cpls-content">
+
+      <div class="cpls-logo-wrap">
+        <div class="cpls-logo-aura" aria-hidden="true"></div>
+        <img id="cpls-logo" class="cpls-logo" src="assets/logo.webp" alt="Media Vault" />
+      </div>
+
+      <div class="cpls-title-wrap">
+        <h1 id="cpls-title" class="cpls-title" data-text="MEDIA VAULT">MEDIA VAULT</h1>
+        <p id="cpls-subtitle" class="cpls-subtitle">SECURE ARCHIVE // NEURAL LINK</p>
+      </div>
+
+      <div class="cpls-progress">
+        <div class="cpls-telemetry-row">
+          <span id="cpls-telemetry-text">SYSTEM INITIALIZING...</span>
+          <span id="cpls-elapsed">T+0.0s</span>
+        </div>
+        <div class="cpls-bar-track" id="cpls-bar-track"></div>
+        <div class="cpls-percent-row">
+          <div id="cpls-percent"><span id="cpls-percent-value">0</span><span class="unit">%</span></div>
+          <div class="cpls-stats">
+            <div id="cpls-buffer-stat">BUFFER: 0%</div>
+            <div id="cpls-nodes-stat">NODES: 3/7 ONLINE</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cpls-message-wrap">
+        <p id="cpls-message" dir="rtl" lang="ar"></p>
+      </div>
+
+    </div>
+
+    <div class="cpls-corner tl" aria-hidden="true"></div>
+    <div class="cpls-corner tr" aria-hidden="true"></div>
+    <div class="cpls-corner bl" aria-hidden="true"></div>
+    <div class="cpls-corner br" aria-hidden="true"></div>
+
+  </div>
+
+  <!-- Classic (non-module) scripts only — these work when the file is opened
+       directly via file:// with no server and no network access. -->
+  <script src="js/model-data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
