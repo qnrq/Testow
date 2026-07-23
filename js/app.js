@@ -1,1170 +1,935 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PremiumotionCraft — Showcase Studio</title>
-  <style>
-    :root{
-      --bg:#090c11;
-      --panel:#101722;
-      --panel2:#151f2c;
-      --panel3:#0d131b;
-      --text:#eef3f9;
-      --muted:#93a4ba;
-      --accent:#d2aa62;
-      --accent2:#39b8a7;
-      --accent3:#7c8cff;
-      --danger:#f06a6a;
-      --line:rgba(255,255,255,.09);
-      --shadow:0 24px 70px rgba(0,0,0,.42);
-      --r:24px;
-      --r2:18px;
-      --sidebar:280px;
-    }
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{
-      margin:0;
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-      background:
-        radial-gradient(circle at 15% 0%, rgba(210,170,98,.16), transparent 28%),
-        radial-gradient(circle at 100% 10%, rgba(57,184,167,.16), transparent 30%),
-        radial-gradient(circle at 80% 100%, rgba(124,140,255,.12), transparent 28%),
-        linear-gradient(180deg, #070a0f, #091019 42%, #06080c 100%);
-      color:var(--text);
-      overflow-x:hidden;
-    }
-    a{color:inherit;text-decoration:none}
-    .app{
-      display:grid;
-      grid-template-columns:var(--sidebar) minmax(0,1fr);
-      min-height:100vh;
-    }
-    .sidebar{
-      position:sticky;top:0;height:100vh;overflow:auto;
-      background:linear-gradient(180deg, rgba(12,18,26,.98), rgba(9,13,19,.98));
-      border-left:1px solid var(--line);
-      padding:22px 18px;
-      box-shadow:var(--shadow);
-      z-index:20;
-    }
-    .brand{
-      display:flex;gap:14px;align-items:center;margin-bottom:18px;
-    }
-    .mark{
-      width:52px;height:52px;border-radius:18px;
-      background:linear-gradient(135deg, rgba(210,170,98,.95), rgba(57,184,167,.95));
-      box-shadow:0 14px 40px rgba(57,184,167,.18);
-      display:grid;place-items:center;font-weight:900;color:#091019;
-    }
-    .brand h1{margin:0;font-size:18px;line-height:1.2}
-    .brand .sub{color:var(--muted);font-size:12px;margin-top:4px;line-height:1.6}
-    .side-card{
-      background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.015));
-      border:1px solid var(--line);
-      border-radius:20px;padding:14px;margin-bottom:14px;
-    }
-    .side-card .k{color:var(--muted);font-size:12px}
-    .side-card .v{font-size:20px;font-weight:800;margin-top:6px}
-    .nav{display:flex;flex-direction:column;gap:8px;margin-top:12px}
-    .nav a{
-      padding:12px 14px;border-radius:16px;border:1px solid transparent;
-      color:#d7dfeb;background:transparent;transition:.18s ease;
-      display:flex;align-items:center;justify-content:space-between;gap:10px;
-    }
-    .nav a:hover,.nav a.active{background:rgba(255,255,255,.05);border-color:var(--line);transform:translateX(-2px)}
-    .nav small{color:var(--muted)}
-    .sidebar .tools{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
-    .btn{
-      border:1px solid var(--line);background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
-      color:var(--text);border-radius:999px;padding:11px 16px;cursor:pointer;transition:.16s ease;
-      display:inline-flex;align-items:center;gap:8px;font:inherit;
-    }
-    .btn:hover{transform:translateY(-1px);border-color:rgba(210,170,98,.38)}
-    .btn.primary{background:linear-gradient(180deg, rgba(210,170,98,.24), rgba(210,170,98,.09));border-color:rgba(210,170,98,.38)}
-    .btn.alt{background:linear-gradient(180deg, rgba(57,184,167,.18), rgba(57,184,167,.06));border-color:rgba(57,184,167,.28)}
-    .btn.soft{background:linear-gradient(180deg, rgba(124,140,255,.16), rgba(124,140,255,.06));border-color:rgba(124,140,255,.28)}
-    .btn.danger{background:linear-gradient(180deg, rgba(240,106,106,.18), rgba(240,106,106,.06));border-color:rgba(240,106,106,.28)}
-    .main{min-width:0}
-    .hero{
-      margin:18px 18px 0 18px;
-      background:linear-gradient(135deg, rgba(16,23,34,.95), rgba(10,15,22,.9));
-      border:1px solid var(--line);
-      border-radius:32px;
-      box-shadow:var(--shadow);
-      padding:24px;
-      overflow:hidden;
-      position:relative;
-    }
-    .hero::before{
-      content:"";position:absolute;inset:-2px;
-      background:linear-gradient(90deg, transparent, rgba(255,255,255,.08), transparent);
-      transform:translateX(-60%);animation:shine 7s linear infinite;pointer-events:none;opacity:.75;
-    }
-    @keyframes shine{to{transform:translateX(60%)}}
-    .hero-top{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap;position:relative;z-index:1}
-    .hero h2{margin:0;font-size:clamp(30px,4.2vw,58px);line-height:1.04;letter-spacing:-.03em}
-    .hero p{margin:12px 0 0;color:var(--muted);max-width:1040px;line-height:1.85}
-    .hero-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
-    .hero-grid{
-      position:relative;z-index:1;margin-top:18px;
-      display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;
-    }
-    .metric{
-      padding:16px;border-radius:20px;border:1px solid var(--line);
-      background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.015));
-      min-height:100px;display:flex;flex-direction:column;justify-content:space-between;
-    }
-    .metric .k{color:var(--muted);font-size:12px}
-    .metric .v{font-size:22px;font-weight:850}
-    .metric .d{font-size:12px;color:#cfd8e5;line-height:1.6}
-    .section{padding:18px}
-    .stack{display:grid;gap:18px;margin:18px}
-    .panel{
-      background:linear-gradient(180deg, rgba(16,23,34,.95), rgba(11,16,23,.95));
-      border:1px solid var(--line);
-      border-radius:28px;
-      box-shadow:var(--shadow);
-      overflow:hidden;
-    }
-    .panel-head{
-      padding:18px 18px 12px;
-      display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;
-      border-bottom:1px solid var(--line);
-    }
-    .panel h3{margin:0;font-size:18px}
-    .panel .sub{margin-top:6px;color:var(--muted);font-size:13px;line-height:1.7}
-    .badge{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid var(--line);font-size:12px;color:#d7dfeb}
-    .panel-body{padding:18px}
-    .grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
-    .grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
-    .grid-4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
-    .grid-5{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
-    .grid-6{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
-    .stage{
-      position:relative;min-height:320px;overflow:hidden;border-radius:22px;border:1px dashed rgba(255,255,255,.12);
-      background:
-        radial-gradient(circle at 18% 18%, rgba(210,170,98,.16), transparent 22%),
-        radial-gradient(circle at 78% 24%, rgba(57,184,167,.12), transparent 24%),
-        radial-gradient(circle at 60% 80%, rgba(124,140,255,.12), transparent 25%),
-        linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
-    }
-    .stage.tall{min-height:620px}
-    .stage .hint{position:absolute;bottom:14px;left:14px;color:var(--muted);font-size:12px;line-height:1.5}
-    .stage .corner{position:absolute;top:12px;right:12px;color:var(--muted);font-size:12px}
-    .box{
-      position:absolute;left:0;top:0;width:92px;height:92px;border-radius:24px;display:grid;place-items:center;
-      color:#fff;font-weight:900;letter-spacing:.5px;user-select:none;cursor:grab;touch-action:none;
-      box-shadow:0 18px 42px rgba(0,0,0,.3);background:linear-gradient(135deg, rgba(210,170,98,.95), rgba(57,184,167,.95));
-    }
-    .box.small{width:68px;height:68px;border-radius:18px;font-size:12px}
-    .box.round{border-radius:999px}
-    .box.outline{background:transparent;border:1px solid rgba(255,255,255,.2)}
-    .bars{display:flex;gap:10px;align-items:end;height:200px;margin-top:18px}
-    .bar{
-      width:100%;border-radius:18px 18px 8px 8px;background:linear-gradient(180deg, rgba(57,184,167,.95), rgba(57,184,167,.2));
-      min-height:28px;position:relative;transform-origin:bottom center;
-    }
-    .bar:nth-child(2){background:linear-gradient(180deg, rgba(210,170,98,.95), rgba(210,170,98,.2))}
-    .bar:nth-child(3){background:linear-gradient(180deg, rgba(124,140,255,.95), rgba(124,140,255,.2))}
-    .bar:nth-child(4){background:linear-gradient(180deg, rgba(240,106,106,.95), rgba(240,106,106,.2))}
-    .bar span{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);margin-bottom:8px;color:var(--muted);font-size:12px;white-space:nowrap}
-    .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
-    .field{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-    .field label{min-width:110px;color:var(--muted);font-size:13px}
-    .field input[type="range"]{width:min(280px,100%)}
-    .field input[type="text"], .field select{
-      background:#0c1219;border:1px solid var(--line);color:var(--text);border-radius:14px;padding:10px 12px;min-width:230px;
-    }
-    .codebox{
-      background:#071019;border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:14px;color:#d9e6f1;
-      font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.75;white-space:pre-wrap;min-height:150px;
-    }
-    .pill-list{display:flex;flex-wrap:wrap;gap:10px}
-    .pill{padding:9px 12px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.03);cursor:pointer;color:var(--text)}
-    .pill.active{background:rgba(210,170,98,.16);border-color:rgba(210,170,98,.32)}
-    .gallery{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:4px;scrollbar-width:none}
-    .gallery::-webkit-scrollbar{display:none}
-    .gallery .item{flex:0 0 auto;scroll-snap-align:center;width:clamp(240px,36vw,380px);height:220px;position:relative;border-radius:22px;overflow:hidden;border:1px solid var(--line);background:#0c1118}
-    .gallery .item img{width:100%;height:100%;object-fit:cover;display:block;transform:scale(1);transition:transform .5s ease}
-    .gallery .item:hover img{transform:scale(1.05)}
-    .gallery .cap{position:absolute;inset:auto 14px 14px 14px;padding:10px 12px;border-radius:14px;background:rgba(5,8,12,.58);backdrop-filter:blur(10px);font-size:13px}
-    .log{
-      background:#071019;border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:14px;min-height:220px;max-height:320px;overflow:auto;
-      color:#cbd6e4;font-size:13px;line-height:1.75;
-    }
-    .text-demo{font-size:clamp(24px,4vw,64px);line-height:1.05;font-weight:900;letter-spacing:-.04em}
-    .text-demo .accent{color:var(--accent)}
-    .text-demo .accent2{color:var(--accent2)}
-    .mini-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
-    .mini{padding:14px;border-radius:18px;background:rgba(255,255,255,.03);border:1px solid var(--line);min-height:110px;display:flex;flex-direction:column;gap:8px;justify-content:space-between}
-    .mini strong{font-size:15px}
-    .mini span{color:var(--muted);font-size:12px;line-height:1.7}
-    .drawer{
-      position:fixed;left:18px;bottom:18px;width:min(560px,calc(100vw - 36px));z-index:50;display:none;
-    }
-    .drawer.open{display:block}
-    .drawer .inner{background:linear-gradient(180deg, rgba(16,23,34,.98), rgba(10,14,20,.98));border:1px solid var(--line);border-radius:24px;box-shadow:var(--shadow);padding:16px}
-    .drawer .top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:12px}
-    .drawer .top h4{margin:0;font-size:18px}
-    .drawer .top .s{color:var(--muted);font-size:12px;line-height:1.6;margin-top:5px}
-    .cursor-ring{
-      position:fixed;left:0;top:0;width:42px;height:42px;border-radius:50%;border:1px solid rgba(255,255,255,.24);
-      pointer-events:none;transform:translate(-50%,-50%);mix-blend-mode:screen;z-index:9998;opacity:0;
-      background:radial-gradient(circle, rgba(210,170,98,.16), transparent 72%);
-    }
-    .cursor-ring.show{opacity:1}
-    .tag-row{display:flex;flex-wrap:wrap;gap:10px}
-    .tag{padding:8px 11px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.03);color:#d7dfeb;font-size:12px}
-    .footer{padding:0 18px 18px;color:var(--muted);font-size:12px;line-height:1.8}
-    .spacer{height:18px}
-    .section-anchor{scroll-margin-top:18px}
-    @media (max-width:1280px){
-      .app{grid-template-columns:1fr}
-      .sidebar{position:relative;height:auto;border-left:none;border-bottom:1px solid var(--line)}
-      .grid-2,.grid-3,.grid-4,.grid-5,.grid-6,.mini-grid,.hero-grid{grid-template-columns:1fr 1fr}
-    }
-    @media (max-width:860px){
-      .hero,.stack{margin:12px}
-      .grid-2,.grid-3,.grid-4,.grid-5,.grid-6,.mini-grid,.hero-grid{grid-template-columns:1fr}
-      .sidebar{padding:16px 14px}
-      .hero h2{font-size:clamp(28px,8vw,44px)}
-    }
-  </style>
-</head>
-<body>
-  <div class="cursor-ring" id="cursorRing"></div>
-  <div class="app">
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="mark">PC</div>
-        <div>
-          <h1>PremiumotionCraft<br>Showcase Studio</h1>
-          <div class="sub">واجهة استعراض شاملة على نمط صفحات GSAP demo.</div>
-        </div>
-      </div>
+/**
+ * ============================================================================
+ *  Cyberpunk Loading Screen — app.js
+ * ----------------------------------------------------------------------------
+ *  ZERO external libraries and ZERO imported 3D model files. No three.js, no
+ *  React, no Tailwind, no Framer Motion, no CDN, no .glb to go stale or look
+ *  distorted. The globe, its "continents" grid texture, the cloud layer and
+ *  the starfield are all generated procedurally at load time with:
+ *    - plain DOM/CSS for the UI (progress bar, ticker, glow/glitch effects)
+ *    - the browser's native WebGL API (raw gl.* calls, hand-written shaders)
+ *    - the browser's native Canvas2D API to paint the globe's textures
+ *
+ *  Everything customizable lives in CONFIG below.
+ * ==========================================================================*/
 
-      <div class="side-card">
-        <div class="k">Status</div>
-        <div class="v" id="statusTitle">Loading...</div>
-        <div class="sub" id="statusSub">Checking library features</div>
-      </div>
+'use strict';
 
-      <div class="side-card">
-        <div class="k">Feature buckets</div>
-        <div class="tag-row">
-          <span class="tag">Motion</span><span class="tag">Timeline</span><span class="tag">Scroll</span>
-          <span class="tag">FLIP</span><span class="tag">Morph</span><span class="tag">Text</span>
-          <span class="tag">UI</span><span class="tag">Drag</span><span class="tag">Magnetic</span>
-          <span class="tag">Cursor</span><span class="tag">Parallax</span><span class="tag">Charts</span>
-        </div>
-      </div>
+/* ============================================================================
+ * 1. CONFIG — the single place to customize this component.
+ * ==========================================================================*/
+const CONFIG = {
+  durationMs: 7000,
+  telemetryStepMs: 1100,
+  messageIntervalMs: 3600,
 
-      <nav class="nav" id="nav">
-        <a href="#hero" class="active"><span>Overview</span><small>01</small></a>
-        <a href="#motion"><span>Motion Studio</span><small>02</small></a>
-        <a href="#timeline"><span>Timeline Lab</span><small>03</small></a>
-        <a href="#scroll"><span>Scroll Theater</span><small>04</small></a>
-        <a href="#flip"><span>FLIP / Morph</span><small>05</small></a>
-        <a href="#text"><span>Text Lab</span><small>06</small></a>
-        <a href="#interaction"><span>Interaction Lab</span><small>07</small></a>
-        <a href="#ui"><span>UI & Overlays</span><small>08</small></a>
-        <a href="#gallery"><span>Showcase Gallery</span><small>09</small></a>
-        <a href="#diagnostics"><span>Diagnostics</span><small>10</small></a>
-      </nav>
+  title: 'MEDIA VAULT',
+  subtitle: 'SECURE ARCHIVE // NEURAL LINK',
 
-      <div class="tools">
-        <button class="btn primary" id="runAllBtn">Run All</button>
-        <button class="btn alt" id="openDrawerBtn">Inspector</button>
-        <button class="btn soft" id="resetBtn">Reset</button>
-        <button class="btn danger" id="killBtn">Kill All</button>
-      </div>
-    </aside>
+  colors: {
+    bgBase: '#05070a',
+    bgVignette: '#000000',
+    primaryNeon: '#28f6ff',
+    secondaryGlow: '#ff2bd6',
+    tertiaryAccent: '#ffb020',
+    textPrimary: '#eafdff',
+    textDim: '#6f95a3',
+    hudBorder: 'rgba(40, 246, 255, 0.35)',
+    barTrack: 'rgba(255, 255, 255, 0.06)',
+  },
 
-    <main class="main">
-      <section class="hero section-anchor" id="hero">
-        <div class="hero-top">
-          <div>
-            <h2>واجهة عرض كاملة لمكتبتك.</h2>
-            <p>
-              هذه الصفحة مصممة لتبدو مثل صفحات استعراض GSAP: تجربة حيّة، أقسام مستقلة، أزرار تشغيل سريعة، ومختبرات
-              واضحة لكل فئة. الفكرة هنا ليست “عرض عناصر فقط”، بل تقديم رحلة كاملة تكشف قدرات الحركة والتمرير والسحب
-              والتحويلات والـ UI والنص والـ showcase والـ diagnostics في مكان واحد.
-            </p>
-          </div>
-          <div class="hero-actions">
-            <button class="btn primary" id="heroRun">Start Showcase</button>
-            <button class="btn alt" id="heroModal">Open Overlay</button>
-            <button class="btn">Copy API Map</button>
-          </div>
-        </div>
-        <div class="hero-grid">
-          <div class="metric"><div class="k">Core motion</div><div class="v">Tween / Timeline</div><div class="d">حركة أساسية وتسلسل.</div></div>
-          <div class="metric"><div class="k">Advanced layout</div><div class="v">FLIP / Morph</div><div class="d">إعادة ترتيب وانسياب بصري.</div></div>
-          <div class="metric"><div class="k">Interaction</div><div class="v">Drag / Magnet</div><div class="d">سحب، احتكاك، سلوك لمس.</div></div>
-          <div class="metric"><div class="k">UX layer</div><div class="v">Toast / Dialog</div><div class="d">واجهات مساعدة وطبقات عرض.</div></div>
-        </div>
-      </section>
+  telemetrySteps: [
+    'SYSTEM INITIALIZING...',
+    'ESTABLISHING SECURE UPLINK...',
+    'DECRYPTING MEDIA INDEX...',
+    'HYDRATING MEDIA BUFFER...',
+    'CALIBRATING RENDER NODES...',
+    'SYNCHRONIZING ARCHIVE SHARDS...',
+    'FINALIZING NEURAL HANDSHAKE...',
+  ],
 
-      <div class="stack">
-        <section class="panel section-anchor" id="motion">
-          <div class="panel-head">
-            <div>
-              <h3>Motion Studio</h3>
-              <div class="sub">اختبار tween و easing و repeat و yoyo و stagger و transforms.</div>
-            </div>
-            <span class="badge">core motion</span>
-          </div>
-          <div class="panel-body">
-            <div class="grid-2">
-              <div>
-                <div class="stage" id="motionStage">
-                  <div class="box" id="boxA" style="left:18px;top:18px">A</div>
-                  <div class="box small round" id="boxB" style="left:130px;top:26px">B</div>
-                  <div class="box small" id="boxC" style="left:220px;top:118px">C</div>
-                  <div class="box outline" id="boxD" style="left:350px;top:60px">D</div>
-                  <div class="hint">استعمل الأزرار أو شغّل العرض الكامل.</div>
-                  <div class="corner">Move / scale / rotate</div>
-                </div>
-                <div class="spacer"></div>
-                <div class="controls">
-                  <button class="btn primary" id="btnMotionA">Tween</button>
-                  <button class="btn alt" id="btnMotionB">Stagger</button>
-                  <button class="btn soft" id="btnMotionC">Elastic</button>
-                  <button class="btn" id="btnMotionD">Reverse</button>
-                </div>
-              </div>
-              <div>
-                <div class="codebox" id="motionLog">Ready.</div>
-                <div class="spacer"></div>
-                <div class="field">
-                  <label>Duration</label>
-                  <input type="range" min="200" max="2200" value="900" id="durRange">
-                  <span class="badge mono" id="durValue">900ms</span>
-                </div>
-                <div class="spacer"></div>
-                <div class="field">
-                  <label>Easing</label>
-                  <select id="easeSelect">
-                    <option>easeOutCubic</option>
-                    <option>easeOutBack</option>
-                    <option>easeOutElastic</option>
-                    <option>easeInOutCubic</option>
-                    <option>linear</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+  messages: [
+    'اللهم صلِّ وسلم على سيدنا محمد وآل محمد',
+    'لا تنسَ الدعاء لإخوتنا المستضعفين في فلسطين والسودان',
+    'اللهم أنصر المستضعفين من الإيغور وكافة المظلومين في الأرض',
+    'رحم الله شهداء العراق الأبرار من الحشد الشعبي والقوات الأمنية والمدنيين',
+    'السلام على الحسين وعلى علي بن الحسين وعلى أولاد الحسين وعلى أصحاب الحسين.. اذكروا عطش الحسين',
+    'دعوة من القلب لأهلنا الصابرين في غزة والخرطوم وكل بقاع الأمة',
+  ],
 
-        <section class="panel section-anchor" id="timeline">
-          <div class="panel-head">
-            <div>
-              <h3>Timeline Lab</h3>
-              <div class="sub">عرض التسلسل، labels، pause/play، scrubbing، وإعادة التحكّم.</div>
-            </div>
-            <span class="badge">sequence</span>
-          </div>
-          <div class="panel-body">
-            <div class="grid-2">
-              <div>
-                <div class="stage" style="min-height:340px;padding:18px">
-                  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px">
-                    <div class="badge">Timeline engine</div>
-                    <div class="badge">labels / calls / sync</div>
-                  </div>
-                  <div class="bars" id="bars">
-                    <div class="bar" style="height:38%"><span>Intro</span></div>
-                    <div class="bar" style="height:72%"><span>Build</span></div>
-                    <div class="bar" style="height:56%"><span>Peak</span></div>
-                    <div class="bar" style="height:26%"><span>Outro</span></div>
-                  </div>
-                  <div class="hint">هذا القسم يوضح كيف يمكن للمكتبة أن تدير أنيميشن متسلسلًا بدل الحركة المنفردة.</div>
-                </div>
-                <div class="spacer"></div>
-                <div class="controls">
-                  <button class="btn primary" id="timelinePlay">Play Timeline</button>
-                  <button class="btn alt" id="timelinePause">Pause</button>
-                  <button class="btn soft" id="timelineScrub">Scrub</button>
-                  <button class="btn" id="timelineLabels">Labels</button>
-                </div>
-              </div>
-              <div>
-                <div class="codebox" id="timelineLog">timeline ready</div>
-                <div class="spacer"></div>
-                <div class="field">
-                  <label>Progress</label>
-                  <input type="range" min="0" max="100" value="0" id="timelineRange">
-                  <span class="badge mono" id="timelineValue">0%</span>
-                </div>
-                <div class="spacer"></div>
-                <div class="pill-list" id="timelinePills">
-                  <button class="pill active">Intro</button>
-                  <button class="pill">Build</button>
-                  <button class="pill">Peak</button>
-                  <button class="pill">Outro</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+  scene: {
+    globeRadius: 1.55,
+    autoRotateSpeed: 0.14,
+    cloudRotateSpeed: 0.05,
+    floatAmplitude: 0.16,
+    floatSpeed: 0.6,
+    cameraZ: 4.2,
+    emissiveBoost: 1.15,
+    textureSeed: 1337,
+    starCount: 2200,
+    starFieldRadius: 34,
+  },
 
-        <section class="panel section-anchor" id="scroll">
-          <div class="panel-head">
-            <div>
-              <h3>Scroll Theater</h3>
-              <div class="sub">تمرير طويل مع parallax و reveal و pin و progress markers.</div>
-            </div>
-            <span class="badge">scroll trigger</span>
-          </div>
-          <div class="panel-body">
-            <div class="grid-2">
-              <div>
-                <div class="stage tall" id="scrollStage" style="padding:18px;overflow:auto">
-                  <div style="height:1080px;display:flex;flex-direction:column;justify-content:space-between">
-                    <div>
-                      <div class="badge">Scroll start</div>
-                      <h4 style="margin:14px 0 8px;font-size:32px;line-height:1.1">Reveal / Pin / Snap</h4>
-                      <p style="margin:0;color:var(--muted);line-height:1.85;max-width:520px">ارفع هذا القسم لعرض قدرات المكتبة في التعامل مع المسافات والتتابع ومحاكاة حركة السينما.</p>
-                    </div>
-                    <div class="mini-grid">
-                      <div class="mini"><strong>Reveal</strong><span>ظهور متدرج بالعناصر.</span></div>
-                      <div class="mini"><strong>Pin</strong><span>تثبيت عنصر أثناء التمرير.</span></div>
-                      <div class="mini"><strong>Snap</strong><span>الالتقاط إلى نقاط.</span></div>
-                      <div class="mini"><strong>Parallax</strong><span>عمق وحركة خلفية.</span></div>
-                    </div>
-                    <div>
-                      <div class="badge">Scroll progress</div>
-                      <div class="codebox" id="scrollLog">0%</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div>
-                <div class="codebox" id="scrollApi">scroll trigger demo</div>
-                <div class="spacer"></div>
-                <div class="controls">
-                  <button class="btn primary" id="scrollRevealBtn">Reveal</button>
-                  <button class="btn alt" id="scrollPinBtn">Pin Mode</button>
-                  <button class="btn soft" id="scrollSnapBtn">Snap</button>
-                </div>
-                <div class="spacer"></div>
-                <div class="tag-row">
-                  <span class="tag">markers</span><span class="tag">scrub</span><span class="tag">onEnter</span><span class="tag">onLeave</span>
-                  <span class="tag">start/end</span><span class="tag">viewport</span><span class="tag">smooth scroll</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+  onComplete: null,
+};
 
-        <section class="panel section-anchor" id="flip">
-          <div class="panel-head">
-            <div>
-              <h3>FLIP / Morph Lab</h3>
-              <div class="sub">إعادة ترتيب العناصر وتحوّلها بصريًا بين حالات مختلفة.</div>
-            </div>
-            <span class="badge">layout transform</span>
-          </div>
-          <div class="panel-body">
-            <div class="grid-2">
-              <div>
-                <div class="mini-grid" id="flipGrid" style="grid-template-columns:repeat(2,minmax(0,1fr))">
-                  <div class="mini"><strong>Tile A</strong><span>Thumbnail morph</span></div>
-                  <div class="mini"><strong>Tile B</strong><span>Reparent / reorder</span></div>
-                  <div class="mini"><strong>Tile C</strong><span>Cross fade</span></div>
-                  <div class="mini"><strong>Tile D</strong><span>Scroll linked</span></div>
-                </div>
-                <div class="spacer"></div>
-                <div class="controls">
-                  <button class="btn primary" id="flipBtn">Run FLIP</button>
-                  <button class="btn alt" id="morphBtn">Morph Layout</button>
-                  <button class="btn soft" id="swapBtn">Swap Grid</button>
-                </div>
-              </div>
-              <div>
-                <div class="codebox" id="flipLog">FLIP ready</div>
-                <div class="spacer"></div>
-                <div class="stage" style="min-height:220px;padding:16px">
-                  <div class="box small round" style="left:20px;top:20px">1</div>
-                  <div class="box small" style="left:110px;top:40px">2</div>
-                  <div class="box small round" style="left:210px;top:84px">3</div>
-                  <div class="box small outline" style="left:320px;top:124px">4</div>
-                  <div class="hint">هذا مجرد playground بصري إضافي للفهم السريع.</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section class="panel section-anchor" id="text">
-          <div class="panel-head">
-            <div>
-              <h3>Text Lab</h3>
-              <div class="sub">typewriter / split chars / words / lines / scramble / reveal.</div>
-            </div>
-            <span class="badge">text engine</span>
-          </div>
-          <div class="panel-body">
-            <div class="grid-2">
-              <div>
-                <div class="text-demo" id="textDemo">Premiumotion<span class="accent">Craft</span></div>
-                <div class="spacer"></div>
-                <div class="controls">
-                  <button class="btn primary" id="typeBtn">Typewriter</button>
-                  <button class="btn alt" id="splitBtn">Split Reveal</button>
-                  <button class="btn soft" id="scrambleBtn">Scramble</button>
-                  <button class="btn" id="linesBtn">Lines</button>
-                </div>
-                <div class="spacer"></div>
-                <div class="field">
-                  <label>Text preset</label>
-                  <select id="textPreset">
-                    <option>PremiumotionCraft</option>
-                    <option>Motion, refined.</option>
-                    <option>Effects, staged properly.</option>
-                    <option>Build interfaces, not noise.</option>
-                  </select>
-                </div>
-              </div>
-              <div>
-                <div class="log" id="textLog"></div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section class="panel section-anchor" id="interaction">
-          <div class="panel-head">
-            <div>
-              <h3>Interaction Lab</h3>
-              <div class="sub">drag / inertia / snap / magnetic hover / cursor ring / bounds.</div>
-            </div>
-            <span class="badge">interaction core</span>
-          </div>
-          <div class="panel-body">
-            <div class="grid-2">
-              <div>
-                <div class="stage" id="dragStage">
-                  <div class="box" id="dragBox" style="left:26px;top:26px;background:linear-gradient(135deg,#ef6a6a,#d2aa62)">DRAG</div>
-                  <div class="box small" id="mag1" style="left:260px;top:40px;background:linear-gradient(135deg,#39b8a7,#7c8cff)">MAG</div>
-                  <div class="box small round" id="mag2" style="left:370px;top:150px;background:linear-gradient(135deg,#7c8cff,#ef6a6a)">HOV</div>
-                  <div class="hint">حرّك المربعات واختبر الإحساس الحركي.</div>
-                </div>
-                <div class="spacer"></div>
-                <div class="controls">
-                  <button class="btn primary" id="dragReset">Reset Drag</button>
-                  <button class="btn alt" id="magneticBtn">Magnetic</button>
-                  <button class="btn soft" id="cursorBtn">Cursor FX</button>
-                </div>
-              </div>
-              <div>
-                <div class="codebox" id="interactionLog">interaction ready</div>
-                <div class="spacer"></div>
-                <div class="field">
-                  <label>Snap step</label>
-                  <input type="range" min="0" max="100" value="20" id="snapRange">
-                  <span class="badge mono" id="snapValue">20</span>
-                </div>
-                <div class="spacer"></div>
-                <div class="field">
-                  <label>Friction</label>
-                  <input type="range" min="80" max="99" value="92" id="frictionRange">
-                  <span class="badge mono" id="frictionValue">0.92</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section class="panel section-anchor" id="ui">
-          <div class="panel-head">
-            <div>
-              <h3>UI & Overlays</h3>
-              <div class="sub">dialogs / toast / tooltips / menus / accordion / overlays.</div>
-            </div>
-            <span class="badge">ui layer</span>
-          </div>
-          <div class="panel-body">
-            <div class="grid-3">
-              <div class="mini"><strong>Dialog</strong><span>overlay / focus / close controls</span><button class="btn primary" id="dialogBtn">Open Dialog</button></div>
-              <div class="mini"><strong>Toast</strong><span>short queue / stack</span><button class="btn alt" id="toastBtn">Show Toast</button></div>
-              <div class="mini"><strong>Tooltip</strong><span>hover helpers / hints</span><button class="btn soft" id="tipBtn">Show Hint</button></div>
-            </div>
-            <div class="spacer"></div>
-            <div class="grid-2">
-              <div class="codebox" id="uiLog">ui ready</div>
-              <div>
-                <div class="stage" style="min-height:220px;padding:18px">
-                  <div class="badge">accordion / menu / badge / modal</div>
-                  <div class="spacer"></div>
-                  <div class="pill-list" id="uiMenu">
-                    <button class="pill active">Open</button>
-                    <button class="pill">Close</button>
-                    <button class="pill">Stack</button>
-                    <button class="pill">Glass</button>
-                  </div>
-                  <div class="spacer"></div>
-                  <div class="tag-row">
-                    <span class="tag">tooltips</span><span class="tag">toasts</span><span class="tag">modals</span><span class="tag">menus</span>
-                    <span class="tag">accordion</span><span class="tag">focus trap</span><span class="tag">glass</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section class="panel section-anchor" id="gallery">
-          <div class="panel-head">
-            <div>
-              <h3>Showcase Gallery</h3>
-              <div class="sub">أفقي، سينمائي، مناسب لعرض الصور أو اللقطات أو المشاريع.</div>
-            </div>
-            <span class="badge">showcase</span>
-          </div>
-          <div class="panel-body">
-            <div class="gallery" id="galleryTrack">
-              <div class="item"><img alt="demo 1" src="https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=1200&q=80"><div class="cap">Showcase 01 — motion and depth</div></div>
-              <div class="item"><img alt="demo 2" src="https://images.unsplash.com/photo-1526378722484-bd91ca387e72?auto=format&fit=crop&w=1200&q=80"><div class="cap">Showcase 02 — transition and stage</div></div>
-              <div class="item"><img alt="demo 3" src="https://images.unsplash.com/photo-1484417894907-623942c8ee29?auto=format&fit=crop&w=1200&q=80"><div class="cap">Showcase 03 — cinematic gallery</div></div>
-              <div class="item"><img alt="demo 4" src="https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1200&q=80"><div class="cap">Showcase 04 — deep visual flow</div></div>
-            </div>
-            <div class="spacer"></div>
-            <div class="controls">
-              <button class="btn primary" id="galleryScrollBtn">Auto Scroll</button>
-              <button class="btn alt" id="galleryLightboxBtn">Lightbox</button>
-              <button class="btn soft" id="galleryShuffleBtn">Shuffle</button>
-            </div>
-          </div>
-        </section>
-
-        <section class="panel section-anchor" id="diagnostics">
-          <div class="panel-head">
-            <div>
-              <h3>Diagnostics / API Map</h3>
-              <div class="sub">كشف ما هو متاح من المكتبة داخل هذه الواجهة تلقائيًا.</div>
-            </div>
-            <span class="badge">inspector</span>
-          </div>
-          <div class="panel-body">
-            <div class="grid-2">
-              <div>
-                <div class="grid-6" id="diagGrid">
-                  <div class="mini"><strong>Motion</strong><span>Tween</span></div>
-                  <div class="mini"><strong>Sequence</strong><span>Timeline</span></div>
-                  <div class="mini"><strong>Scroll</strong><span>Trigger</span></div>
-                  <div class="mini"><strong>Layout</strong><span>FLIP</span></div>
-                  <div class="mini"><strong>Input</strong><span>Drag</span></div>
-                  <div class="mini"><strong>Text</strong><span>Split</span></div>
-                </div>
-                <div class="spacer"></div>
-                <div class="controls">
-                  <button class="btn primary" id="scanBtn">Scan API</button>
-                  <button class="btn alt" id="openOverlayBtn">Overlay</button>
-                </div>
-              </div>
-              <div>
-                <div class="codebox" id="apiBox">Loading...</div>
-              </div>
-            </div>
-          </div>
-        </section>
-      </div>
-
-      <div class="footer">
-        هذه واجهة عرض واحدة قابلة للتوسعة. عدّل مسار ملف المكتبة في الأسفل إذا كان الاسم مختلفًا.
-      </div>
-    </main>
-  </div>
-
-  <div class="drawer" id="drawer">
-    <div class="inner">
-      <div class="top">
-        <div>
-          <h4>Inspector</h4>
-          <div class="s">لوحة تشغيل سريعة لاختبار قدرات المكتبة كما تُعرض في صفحات demo الاحترافية.</div>
-        </div>
-        <button class="btn danger" id="closeDrawerBtn">Close</button>
-      </div>
-      <div class="controls">
-        <button class="btn primary" id="drawerRun">Run All</button>
-        <button class="btn alt" id="drawerToast">Toast</button>
-        <button class="btn soft" id="drawerFlip">FLIP</button>
-        <button class="btn" id="drawerText">Text</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="drawer" id="dialogOverlay" style="right:18px;left:auto;bottom:auto;top:18px;width:min(620px,calc(100vw - 36px))">
-    <div class="inner">
-      <div class="top">
-        <div>
-          <h4>Overlay Demo</h4>
-          <div class="s">يمكنك استخدام هذه الطبقة لإظهار dialog / modal / focus state / transitions.</div>
-        </div>
-        <button class="btn danger" id="closeOverlayBtn">Close</button>
-      </div>
-      <div class="grid-3">
-        <div class="mini"><strong>Preset</strong><span>elastic / smooth</span></div>
-        <div class="mini"><strong>Preset</strong><span>magnetic / sticky</span></div>
-        <div class="mini"><strong>Preset</strong><span>cinematic / glass</span></div>
-      </div>
-    </div>
-  </div>
-
-  <script src="./premiumotioncraft-ultimate(1).js"></script>
-  <script>
-    const $ = (s, r=document) => r.querySelector(s);
-    const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
-    const lib = () => window.premiumotioncraft || null;
-
-    const state = {
-      dragStart: null,
-      dragOrigin: null,
-      dragging: false,
-      cursorEnabled: false,
-      savedFlipOrder: null,
-      timer: null
-    };
-
-    const log = (el, msg) => {
-      const now = new Date().toLocaleTimeString();
-      el.textContent = `[${now}] ${msg}
-` + el.textContent;
-    };
-
-    const statusTitle = $('#statusTitle');
-    const statusSub = $('#statusSub');
-    const apiBox = $('#apiBox');
-    const motionLog = $('#motionLog');
-    const timelineLog = $('#timelineLog');
-    const scrollApi = $('#scrollApi');
-    const scrollLog = $('#scrollLog');
-    const flipLog = $('#flipLog');
-    const textLog = $('#textLog');
-    const interactionLog = $('#interactionLog');
-    const uiLog = $('#uiLog');
-
-    function featureSummary(){
-      const api = lib();
-      if(!api){
-        statusTitle.textContent = 'Library missing';
-        statusSub.textContent = 'Please fix the JS path';
-        apiBox.textContent = 'PremiumotionCraft library was not found.
-Check the script src at the bottom of the page.';
-        return false;
-      }
-      const keys = Object.keys(api).sort();
-      statusTitle.textContent = 'Loaded';
-      statusSub.textContent = `${keys.length} exported entries detected`;
-      apiBox.textContent = `PremiumotionCraft is loaded.
-
-Exported keys:
-${keys.join(', ')}
-
-Use this page to exercise motion, scroll, FLIP, text, UI, drag, cursor, and showcase behavior.`;
-      return true;
-    }
-
-    function setProgress(target, value){
-      target.style.setProperty('--progress', value);
-    }
-
-    const durRange = $('#durRange');
-    const durValue = $('#durValue');
-    const easeSelect = $('#easeSelect');
-    durRange.addEventListener('input', () => durValue.textContent = `${durRange.value}ms`);
-
-    const timelineRange = $('#timelineRange');
-    const timelineValue = $('#timelineValue');
-    timelineRange.addEventListener('input', () => timelineValue.textContent = `${timelineRange.value}%`);
-
-    const snapRange = $('#snapRange');
-    const snapValue = $('#snapValue');
-    snapRange.addEventListener('input', () => snapValue.textContent = snapRange.value);
-
-    const frictionRange = $('#frictionRange');
-    const frictionValue = $('#frictionValue');
-    frictionRange.addEventListener('input', () => frictionValue.textContent = (frictionRange.value/100).toFixed(2));
-
-    function animateBox(sel, vars){
-      const api = lib(); if(!api) return;
-      try {
-        if(api.animate) return api.animate(sel, vars);
-        if(api.tween) return api.tween(sel, vars);
-      } catch (e) {
-        log(motionLog, `Animation error: ${e.message}`);
+/* ============================================================================
+ * 2. Tiny mat4/vec3 math (hand-written, column-major, WebGL convention).
+ * ==========================================================================*/
+const Mat4 = {
+  identity() {
+    return [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+  },
+  multiply(a, b) {
+    const out = new Array(16);
+    for (let i = 0; i < 4; i++) {
+      for (let j = 0; j < 4; j++) {
+        let sum = 0;
+        for (let k = 0; k < 4; k++) sum += a[k * 4 + j] * b[i * 4 + k];
+        out[i * 4 + j] = sum;
       }
     }
-
-    function tweenBoxes(){
-      const d = Number(durRange.value) / 1000;
-      const ease = easeSelect.value;
-      log(motionLog, `Tween boxes — ${d}s, ${ease}`);
-      animateBox('#boxA', { x: 160, y: 28, rotate: 360, scale: 1.12, duration: d, ease });
-      animateBox('#boxB', { x: 240, y: 88, rotate: -180, duration: d * .9, ease });
-      animateBox('#boxC', { x: 66, y: 160, scale: 1.28, duration: d, ease: 'easeOutBack' });
-      animateBox('#boxD', { x: -122, y: 120, rotate: 12, duration: d * 1.05, ease: 'easeInOutCubic' });
-    }
-
-    function staggerBoxes(){
-      log(motionLog, 'Stagger sequence');
-      ['#boxA','#boxB','#boxC','#boxD'].forEach((sel, i) => setTimeout(() => animateBox(sel, {
-        y: (i % 2 ? 74 : -26),
-        scale: 1.08,
-        rotate: i * 12,
-        duration: 0.38,
-        ease: 'easeOutCubic',
-        yoyo: true,
-        repeat: 1
-      }), i * 110));
-    }
-
-    function elasticBox(){
-      log(motionLog, 'Elastic pop');
-      animateBox('#boxC', { scale: 1.55, rotate: 24, duration: 0.22, ease: 'easeOutElastic', yoyo: true, repeat: 3 });
-    }
-
-    function reverseBoxes(){
-      log(motionLog, 'Reverse direction');
-      animateBox('#boxA', { x: 0, y: 0, rotate: 0, scale: 1, duration: 0.8, ease: 'easeOutCubic' });
-      animateBox('#boxB', { x: 0, y: 0, rotate: 0, duration: 0.8, ease: 'easeOutCubic' });
-      animateBox('#boxC', { x: 0, y: 0, scale: 1, duration: 0.8, ease: 'easeOutCubic' });
-      animateBox('#boxD', { x: 0, y: 0, rotate: 0, duration: 0.8, ease: 'easeOutCubic' });
-    }
-
-    $('#btnMotionA').onclick = tweenBoxes;
-    $('#btnMotionB').onclick = staggerBoxes;
-    $('#btnMotionC').onclick = elasticBox;
-    $('#btnMotionD').onclick = reverseBoxes;
-
-    function playTimeline(){
-      log(timelineLog, 'Timeline: play');
-      const bars = $$('#bars .bar');
-      bars.forEach((bar, i) => {
-        bar.animate([
-          { transform: 'scaleY(.55)', filter: 'brightness(.9)' },
-          { transform: `scaleY(${1 + i * .15})`, filter: 'brightness(1.15)' },
-          { transform: 'scaleY(1)', filter: 'brightness(1)' }
-        ], { duration: 900, easing: 'cubic-bezier(0.16,1,0.3,1)', delay: i * 120, fill: 'both' });
-      });
-      timelineRange.value = 100;
-      timelineValue.textContent = '100%';
-    }
-
-    function pauseTimeline(){
-      log(timelineLog, 'Timeline: pause (visual demo only)');
-    }
-
-    function scrubTimeline(){
-      const p = Number(timelineRange.value) / 100;
-      log(timelineLog, `Scrub: ${timelineRange.value}%`);
-      $$('#bars .bar').forEach((bar, i) => {
-        const scale = 0.45 + p * (0.55 + i * .13);
-        bar.style.transform = `scaleY(${scale})`;
-      });
-    }
-
-    function labelTimeline(){
-      const current = $$('#timelinePills .pill.active')[0];
-      log(timelineLog, `Label selected: ${current ? current.textContent : 'none'}`);
-    }
-
-    $('#timelinePlay').onclick = playTimeline;
-    $('#timelinePause').onclick = pauseTimeline;
-    $('#timelineScrub').onclick = scrubTimeline;
-    $('#timelineLabels').onclick = labelTimeline;
-    timelineRange.addEventListener('input', scrubTimeline);
-    $$('#timelinePills .pill').forEach(btn => btn.addEventListener('click', () => {
-      $$('#timelinePills .pill').forEach(x => x.classList.remove('active'));
-      btn.classList.add('active');
-      labelTimeline();
-    }));
-
-    const scrollStage = $('#scrollStage');
-    scrollStage.addEventListener('scroll', () => {
-      const max = scrollStage.scrollHeight - scrollStage.clientHeight || 1;
-      const p = Math.round((scrollStage.scrollTop / max) * 100);
-      scrollLog.textContent = `${p}%`;
-      scrollApi.textContent = `Scroll stage progress: ${p}%`;
-    });
-    $('#scrollRevealBtn').onclick = () => {
-      log(scrollApi, 'Reveal mode');
-      scrollStage.scrollTo({ top: 0, behavior: 'smooth' });
+    return out;
+  },
+  translate(x, y, z) {
+    return [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, z, 1];
+  },
+  rotateY(rad) {
+    const c = Math.cos(rad), s = Math.sin(rad);
+    return [c, 0, -s, 0, 0, 1, 0, 0, s, 0, c, 0, 0, 0, 0, 1];
+  },
+  perspective(fovyRad, aspect, near, far) {
+    const f = 1 / Math.tan(fovyRad / 2);
+    const nf = 1 / (near - far);
+    return [
+      f / aspect, 0, 0, 0,
+      0, f, 0, 0,
+      0, 0, (far + near) * nf, -1,
+      0, 0, 2 * far * near * nf, 0,
+    ];
+  },
+  lookAt(eye, target, up) {
+    const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+    const norm = (v) => {
+      const l = Math.hypot(v[0], v[1], v[2]) || 1;
+      return [v[0] / l, v[1] / l, v[2] / l];
     };
-    $('#scrollPinBtn').onclick = () => log(scrollApi, 'Pin mode requested');
-    $('#scrollSnapBtn').onclick = () => log(scrollApi, 'Snap mode requested');
+    const cross = (a, b) => [
+      a[1] * b[2] - a[2] * b[1],
+      a[2] * b[0] - a[0] * b[2],
+      a[0] * b[1] - a[1] * b[0],
+    ];
+    const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    const zAxis = norm(sub(eye, target));
+    const xAxis = norm(cross(up, zAxis));
+    const yAxis = cross(zAxis, xAxis);
+    return [
+      xAxis[0], yAxis[0], zAxis[0], 0,
+      xAxis[1], yAxis[1], zAxis[1], 0,
+      xAxis[2], yAxis[2], zAxis[2], 0,
+      -dot(xAxis, eye), -dot(yAxis, eye), -dot(zAxis, eye), 1,
+    ];
+  },
+};
 
-    function flipLayout(){
-      const grid = $('#flipGrid');
-      const items = $$('.mini', grid);
-      if(!state.savedFlipOrder) state.savedFlipOrder = items.slice();
-      const order = [items[2], items[0], items[3], items[1]];
-      order.forEach(el => grid.appendChild(el));
-      log(flipLog, 'FLIP / reorder');
-      items.forEach((el, i) => {
-        el.animate([
-          { transform: 'scale(.88) translateY(6px)', opacity: .55 },
-          { transform: 'scale(1) translateY(0)', opacity: 1 }
-        ], { duration: 460 + i * 40, easing: 'cubic-bezier(0.16,1,0.3,1)', fill: 'both' });
-      });
+/** Deterministic PRNG so the procedural globe looks the same (tested-good)
+ *  every load — no seams, no random ugliness. */
+function mulberry32(seed) {
+  return function () {
+    let t = (seed += 0x6d2b79f5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/* ============================================================================
+ * 3. Procedural sphere geometry (a clean, perfectly round UV sphere — no
+ *    imported mesh, so there is no chance of a distorted/broken model).
+ * ==========================================================================*/
+function generateSphereGeometry(radius, latBands, lonBands) {
+  const positions = [];
+  const normals = [];
+  const uvs = [];
+  const indices = [];
+
+  for (let lat = 0; lat <= latBands; lat++) {
+    const theta = (lat * Math.PI) / latBands;
+    const sinTheta = Math.sin(theta);
+    const cosTheta = Math.cos(theta);
+    for (let lon = 0; lon <= lonBands; lon++) {
+      const phi = (lon * 2 * Math.PI) / lonBands;
+      const sinPhi = Math.sin(phi);
+      const cosPhi = Math.cos(phi);
+      const x = cosPhi * sinTheta;
+      const y = cosTheta;
+      const z = sinPhi * sinTheta;
+      normals.push(x, y, z);
+      positions.push(radius * x, radius * y, radius * z);
+      uvs.push(1 - lon / lonBands, lat / latBands);
     }
+  }
 
-    function morphLayout(){
-      const grid = $('#flipGrid');
-      grid.style.gridTemplateColumns = '1.25fr .75fr';
-      setTimeout(() => grid.style.gridTemplateColumns = 'repeat(2,minmax(0,1fr))', 1200);
-      flipLayout();
-      log(flipLog, 'Morph layout sequence');
+  for (let lat = 0; lat < latBands; lat++) {
+    for (let lon = 0; lon < lonBands; lon++) {
+      const first = lat * (lonBands + 1) + lon;
+      const second = first + lonBands + 1;
+      indices.push(first, second, first + 1);
+      indices.push(second, second + 1, first + 1);
     }
+  }
 
-    function swapGrid(){
-      const grid = $('#flipGrid');
-      const items = $$('.mini', grid);
-      if(state.savedFlipOrder) state.savedFlipOrder.forEach(el => grid.appendChild(el));
-      else items.reverse().forEach(el => grid.appendChild(el));
-      log(flipLog, 'Swap grid order');
-    }
+  return {
+    positions: new Float32Array(positions),
+    normals: new Float32Array(normals),
+    uvs: new Float32Array(uvs),
+    indices: new Uint16Array(indices),
+  };
+}
 
-    $('#flipBtn').onclick = flipLayout;
-    $('#morphBtn').onclick = morphLayout;
-    $('#swapBtn').onclick = swapGrid;
-
-    const textPreset = $('#textPreset');
-    function currentText(){ return textPreset.value; }
-
-    function typewriter(text){
-      const el = $('#textDemo');
-      el.textContent = '';
-      let i = 0;
-      const iv = setInterval(() => {
-        el.textContent += text[i++] || '';
-        if(i > text.length){ clearInterval(iv); log(textLog, `typewriter: ${text}`); }
-      }, 38);
-    }
-    function splitReveal(text){
-      const el = $('#textDemo');
-      el.innerHTML = text.split('').map((ch, i) => `<span style="display:inline-block;opacity:0;transform:translateY(18px);animation:r .42s ${i * .018}s forwards">${ch === ' ' ? '&nbsp;' : ch}</span>`).join('');
-      const style = document.createElement('style');
-      style.textContent = '@keyframes r{to{opacity:1;transform:translateY(0)}}';
-      document.head.appendChild(style);
-      setTimeout(() => style.remove(), 900);
-      log(textLog, `split reveal: ${text}`);
-    }
-    function scramble(text){
-      const el = $('#textDemo');
-      const pool = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
-      let iterations = 0;
-      const max = text.length * 9;
-      const iv = setInterval(() => {
-        el.textContent = text.split('').map((ch, i) => {
-          if(i < Math.floor(iterations / 9)) return ch;
-          return pool[Math.floor(Math.random() * pool.length)];
-        }).join('');
-        iterations++;
-        if(iterations > max){ clearInterval(iv); el.innerHTML = text.replace('Craft', '<span class="accent">Craft</span>').replace('Motion', '<span class="accent2">Motion</span>'); log(textLog, `scramble: ${text}`); }
-      }, 28);
-    }
-    function linesReveal(text){
-      const el = $('#textDemo');
-      const parts = text.split(' ');
-      el.innerHTML = parts.map((part, i) => `<span style="display:block;opacity:0;transform:translateY(16px);animation:l .36s ${i * .08}s forwards">${part}</span>`).join(' ');
-      const style = document.createElement('style');
-      style.textContent = '@keyframes l{to{opacity:1;transform:translateY(0)}}';
-      document.head.appendChild(style);
-      setTimeout(() => style.remove(), 1000);
-      log(textLog, `lines/words: ${text}`);
-    }
-
-    $('#typeBtn').onclick = () => typewriter(currentText());
-    $('#splitBtn').onclick = () => splitReveal(currentText());
-    $('#scrambleBtn').onclick = () => scramble(currentText());
-    $('#linesBtn').onclick = () => linesReveal(currentText());
-
-    function resetDrag(){
-      const d = $('#dragBox');
-      d.style.left = '26px'; d.style.top = '26px'; d.style.transform = '';
-      log(interactionLog, 'drag reset');
-    }
-    function magneticMode(){
-      log(interactionLog, 'magnetic hover requested');
-      $$('#interaction .box').forEach(el => {
-        el.addEventListener('mousemove', e => {
-          const r = el.getBoundingClientRect();
-          const x = ((e.clientX - r.left) / r.width - .5) * 14;
-          const y = ((e.clientY - r.top) / r.height - .5) * 14;
-          el.style.transform = `translate(${x}px, ${y}px) scale(1.03)`;
-        });
-        el.addEventListener('mouseleave', () => el.style.transform = '');
-      });
-    }
-    function cursorFX(){
-      state.cursorEnabled = !state.cursorEnabled;
-      $('#cursorRing').classList.toggle('show', state.cursorEnabled);
-      document.body.style.cursor = state.cursorEnabled ? 'none' : '';
-      log(interactionLog, `cursor FX ${state.cursorEnabled ? 'enabled' : 'disabled'}`);
-    }
-    $('#dragReset').onclick = resetDrag;
-    $('#magneticBtn').onclick = magneticMode;
-    $('#cursorBtn').onclick = cursorFX;
-
-    // Manual drag fallback (works even if library doesn't expose a drag helper in browser)
-    (function initDragFallback(){
-      const box = $('#dragBox');
-      let dragging = false, startX = 0, startY = 0, originX = 0, originY = 0;
-      box.addEventListener('pointerdown', e => {
-        dragging = true;
-        box.setPointerCapture(e.pointerId);
-        startX = e.clientX;
-        startY = e.clientY;
-        originX = box.offsetLeft;
-        originY = box.offsetTop;
-        log(interactionLog, 'drag start');
-      });
-      box.addEventListener('pointermove', e => {
-        if(!dragging) return;
-        const nx = Math.max(0, Math.min(380, originX + (e.clientX - startX)));
-        const ny = Math.max(0, Math.min(210, originY + (e.clientY - startY)));
-        box.style.left = nx + 'px';
-        box.style.top = ny + 'px';
-      });
-      box.addEventListener('pointerup', () => {
-        if(dragging) log(interactionLog, 'drag end');
-        dragging = false;
-      });
-    })();
-
-    $('#dialogBtn').onclick = () => { $('#dialogOverlay').classList.add('open'); log(uiLog, 'dialog open'); };
-    $('#toastBtn').onclick = () => { log(uiLog, 'toast requested'); alert('Toast demo: اربطها بدالة toast داخل المكتبة أو استبدلها بمركز إشعارات داخل الصفحة.'); };
-    $('#tipBtn').onclick = () => { log(uiLog, 'tooltip requested'); alert('Tooltip demo: يمكنك استبدالها بتلميحات حقيقية من المكتبة.'); };
-    $('#closeOverlayBtn').onclick = () => $('#dialogOverlay').classList.remove('open');
-    $('#openOverlayBtn').onclick = () => $('#dialogOverlay').classList.add('open');
-
-    $('#uiMenu').addEventListener('click', e => {
-      if(!e.target.classList.contains('pill')) return;
-      $$('#uiMenu .pill').forEach(x => x.classList.remove('active'));
-      e.target.classList.add('active');
-      log(uiLog, `menu state: ${e.target.textContent}`);
-    });
-
-    $('#galleryScrollBtn').onclick = () => {
-      $('#galleryTrack').scrollBy({ left: 420, behavior: 'smooth' });
-      log(uiLog, 'gallery auto scroll');
-    };
-    $('#galleryLightboxBtn').onclick = () => {
-      const img = $('#galleryTrack .item img');
-      if(!img) return;
-      $('#dialogOverlay').classList.add('open');
-      $('#dialogOverlay .inner').innerHTML = `
-        <div class="top"><div><h4>Lightbox</h4><div class="s">عرض صورة داخل طبقة عزل كاملة.</div></div><button class="btn danger" id="lbClose">Close</button></div>
-        <img src="${img.src}" alt="lightbox" style="width:100%;border-radius:20px;display:block">
-      `;
-      $('#lbClose').onclick = () => { location.reload(); };
-      log(uiLog, 'lightbox open');
-    };
-    $('#galleryShuffleBtn').onclick = () => {
-      const track = $('#galleryTrack');
-      const items = $$('#galleryTrack .item');
-      items.sort(() => Math.random() - 0.5).forEach(el => track.appendChild(el));
-      log(uiLog, 'gallery shuffled');
-    };
-
-    function killAll(){
-      const api = lib();
-      if(api && api.killAll){
-        try { api.killAll(); log(uiLog, 'killAll executed'); } catch (e) { log(uiLog, `killAll failed: ${e.message}`); }
-      } else {
-        log(uiLog, 'killAll unavailable');
+/* ============================================================================
+ * 4. Procedural textures for the globe — painted with Canvas2D.
+ *    Equirectangular (2:1) so they map cleanly onto the UV sphere above.
+ * ==========================================================================*/
+function paintContinentMask(ctx, W, H, rand) {
+  ctx.fillStyle = '#ffffff';
+  const numContinents = 7 + Math.floor(rand() * 3);
+  for (let c = 0; c < numContinents; c++) {
+    let x = rand() * W;
+    let y = H * 0.15 + rand() * H * 0.7;
+    const blobs = 26 + Math.floor(rand() * 30);
+    for (let b = 0; b < blobs; b++) {
+      const r = 10 + rand() * 26;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+      if (x - r < 0) {
+        ctx.beginPath();
+        ctx.arc(x + W, y, r, 0, Math.PI * 2);
+        ctx.fill();
       }
+      if (x + r > W) {
+        ctx.beginPath();
+        ctx.arc(x - W, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      x += (rand() - 0.5) * 34;
+      y += (rand() - 0.5) * 22;
+      y = Math.max(H * 0.08, Math.min(H * 0.92, y));
+    }
+  }
+}
+
+function drawGrid(ctx, W, H, strokeStyle, shadowColor, shadowBlur) {
+  ctx.save();
+  ctx.strokeStyle = strokeStyle;
+  ctx.lineWidth = 1;
+  ctx.shadowColor = shadowColor;
+  ctx.shadowBlur = shadowBlur;
+  for (let lon = 0; lon <= W; lon += W / 24) {
+    ctx.beginPath();
+    ctx.moveTo(lon, 0);
+    ctx.lineTo(lon, H);
+    ctx.stroke();
+  }
+  for (let lat = 0; lat <= H; lat += H / 12) {
+    ctx.beginPath();
+    ctx.moveTo(0, lat);
+    ctx.lineTo(W, lat);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function generateGlobeTextures(seed) {
+  const W = 1024, H = 512;
+  const rand = mulberry32(seed);
+
+  const maskCanvas = document.createElement('canvas');
+  maskCanvas.width = W; maskCanvas.height = H;
+  const mctx = maskCanvas.getContext('2d');
+  paintContinentMask(mctx, W, H, rand);
+  const maskData = mctx.getImageData(0, 0, W, H).data;
+
+  const landCanvas = document.createElement('canvas');
+  landCanvas.width = W; landCanvas.height = H;
+  const lctx = landCanvas.getContext('2d');
+  const landGrad = lctx.createLinearGradient(0, 0, 0, H);
+  landGrad.addColorStop(0, '#0d2b33');
+  landGrad.addColorStop(0.5, '#123842');
+  landGrad.addColorStop(1, '#0d2b33');
+  lctx.fillStyle = landGrad;
+  lctx.fillRect(0, 0, W, H);
+  lctx.globalCompositeOperation = 'destination-in';
+  lctx.drawImage(maskCanvas, 0, 0);
+
+  const baseCanvas = document.createElement('canvas');
+  baseCanvas.width = W; baseCanvas.height = H;
+  const bctx = baseCanvas.getContext('2d');
+  const oceanGrad = bctx.createLinearGradient(0, 0, 0, H);
+  oceanGrad.addColorStop(0, '#020a10');
+  oceanGrad.addColorStop(0.5, '#04141c');
+  oceanGrad.addColorStop(1, '#020a10');
+  bctx.fillStyle = oceanGrad;
+  bctx.fillRect(0, 0, W, H);
+  bctx.drawImage(landCanvas, 0, 0);
+  bctx.save();
+  bctx.globalAlpha = 0.25;
+  bctx.globalCompositeOperation = 'lighten';
+  bctx.drawImage(landCanvas, 0, 0);
+  bctx.restore();
+  drawGrid(bctx, W, H, 'rgba(40,246,255,0.28)', 'rgba(40,246,255,0.5)', 2);
+
+  const emissiveCanvas = document.createElement('canvas');
+  emissiveCanvas.width = W; emissiveCanvas.height = H;
+  const ectx = emissiveCanvas.getContext('2d');
+  ectx.fillStyle = '#000000';
+  ectx.fillRect(0, 0, W, H);
+  drawGrid(ectx, W, H, 'rgba(40,246,255,0.85)', '#28f6ff', 4);
+
+  const numLights = 260;
+  let placed = 0, attempts = 0;
+  while (placed < numLights && attempts < numLights * 25) {
+    attempts++;
+    const px = Math.floor(rand() * W);
+    const py = Math.floor(rand() * H);
+    const idx = (py * W + px) * 4;
+    if (maskData[idx + 3] > 120) {
+      const cyan = rand() < 0.72;
+      const rgb = cyan ? '40,246,255' : '255,43,214';
+      const r = 0.6 + rand() * 1.2;
+      ectx.beginPath();
+      ectx.fillStyle = `rgba(${rgb},${0.85 + rand() * 0.15})`;
+      ectx.shadowColor = `rgba(${rgb},1)`;
+      ectx.shadowBlur = 3;
+      ectx.arc(px, py, r, 0, Math.PI * 2);
+      ectx.fill();
+      placed++;
+    }
+  }
+
+  return { baseCanvas, emissiveCanvas };
+}
+
+function generateCloudTexture(seed) {
+  const W = 1024, H = 512;
+  const rand = mulberry32(seed);
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = 'rgba(230,250,255,1)';
+
+  const clusters = 11;
+  for (let c = 0; c < clusters; c++) {
+    let x = rand() * W;
+    let y = H * 0.12 + rand() * H * 0.76;
+    const blobs = 18 + Math.floor(rand() * 20);
+    for (let b = 0; b < blobs; b++) {
+      const r = 14 + rand() * 30;
+      ctx.save();
+      ctx.globalAlpha = 0.05 + rand() * 0.11;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+      if (x - r < 0) {
+        ctx.beginPath();
+        ctx.arc(x + W, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      if (x + r > W) {
+        ctx.beginPath();
+        ctx.arc(x - W, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+      x += (rand() - 0.5) * 40;
+      y += (rand() - 0.5) * 20;
+    }
+  }
+  return canvas;
+}
+
+function createTextureFromCanvas(gl, canvas) {
+  const tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+  gl.generateMipmap(gl.TEXTURE_2D);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  return tex;
+}
+
+/* ============================================================================
+ * 5. Starfield generation — points scattered uniformly on a large sphere.
+ * ==========================================================================*/
+function generateStarField(count, radius, rand) {
+  const positions = new Float32Array(count * 3);
+  const sizes = new Float32Array(count);
+  const phases = new Float32Array(count);
+  for (let i = 0; i < count; i++) {
+    const u = rand();
+    const v = rand();
+    const theta = 2 * Math.PI * u;
+    const phi = Math.acos(2 * v - 1);
+    const r = radius * (0.55 + rand() * 0.45);
+    positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+    positions[i * 3 + 1] = r * Math.cos(phi);
+    positions[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+    sizes[i] = 1 + rand() * 2.4;
+    phases[i] = rand() * Math.PI * 2;
+  }
+  return { positions, sizes, phases };
+}
+
+/* ============================================================================
+ * 6. Shaders.
+ * ==========================================================================*/
+const GLOBE_VS = `
+  attribute vec3 aPosition;
+  attribute vec3 aNormal;
+  attribute vec2 aUv;
+
+  uniform mat4 uModel;
+  uniform mat4 uView;
+  uniform mat4 uProjection;
+  uniform vec3 uCameraPos;
+
+  varying vec3 vNormalW;
+  varying vec2 vUv;
+  varying vec3 vWorldPos;
+  varying vec3 vViewDir;
+
+  void main() {
+    vec4 worldPos = uModel * vec4(aPosition, 1.0);
+    vWorldPos = worldPos.xyz;
+    vNormalW = mat3(uModel) * aNormal;
+    vUv = aUv;
+    vViewDir = uCameraPos - worldPos.xyz;
+    gl_Position = uProjection * uView * worldPos;
+  }
+`;
+
+const GLOBE_FS = `
+  precision mediump float;
+
+  varying vec3 vNormalW;
+  varying vec2 vUv;
+  varying vec3 vWorldPos;
+  varying vec3 vViewDir;
+
+  uniform sampler2D uBaseColorTex;
+  uniform vec4 uBaseColorFactor;
+  uniform sampler2D uEmissiveTex;
+  uniform bool uHasEmissiveTex;
+  uniform float uEmissiveStrength;
+
+  uniform vec3 uLight1Pos; uniform vec3 uLight1Color;
+  uniform vec3 uLight2Pos; uniform vec3 uLight2Color;
+  uniform vec3 uAmbient;
+
+  void main() {
+    vec3 N = normalize(vNormalW);
+    vec4 base = uBaseColorFactor * texture2D(uBaseColorTex, vUv);
+
+    vec3 emissive = vec3(0.0);
+    if (uHasEmissiveTex) emissive = texture2D(uEmissiveTex, vUv).rgb * uEmissiveStrength;
+
+    vec3 L1 = normalize(uLight1Pos - vWorldPos);
+    vec3 L2 = normalize(uLight2Pos - vWorldPos);
+    float d1 = max(dot(N, L1), 0.0);
+    float d2 = max(dot(N, L2), 0.0);
+
+    vec3 V = normalize(vViewDir);
+    float fresnel = pow(1.0 - max(dot(N, V), 0.0), 2.5);
+    vec3 rim = fresnel * (uLight1Color + uLight2Color) * 0.5;
+
+    vec3 lit = uAmbient * base.rgb + d1 * uLight1Color * base.rgb + d2 * uLight2Color * base.rgb;
+    gl_FragColor = vec4(lit + emissive + rim, base.a);
+  }
+`;
+
+const ATMOSPHERE_VS = `
+  attribute vec3 aPosition;
+  attribute vec3 aNormal;
+  uniform mat4 uModel;
+  uniform mat4 uView;
+  uniform mat4 uProjection;
+  varying vec3 vNormalW;
+  varying vec3 vWorldPos;
+  void main() {
+    vec4 worldPos = uModel * vec4(aPosition, 1.0);
+    vWorldPos = worldPos.xyz;
+    vNormalW = mat3(uModel) * aNormal;
+    gl_Position = uProjection * uView * worldPos;
+  }
+`;
+
+const ATMOSPHERE_FS = `
+  precision mediump float;
+  varying vec3 vNormalW;
+  varying vec3 vWorldPos;
+  uniform vec3 uCameraPos;
+  uniform vec3 uColorA;
+  uniform vec3 uColorB;
+  void main() {
+    vec3 N = normalize(vNormalW);
+    vec3 V = normalize(uCameraPos - vWorldPos);
+    float fres = pow(1.0 - max(dot(N, V), 0.0), 3.0);
+    vec3 color = mix(uColorA, uColorB, fres);
+    gl_FragColor = vec4(color, fres * 0.85);
+  }
+`;
+
+const STAR_VS = `
+  attribute vec3 aPosition;
+  attribute float aSize;
+  attribute float aPhase;
+  uniform mat4 uModel;
+  uniform mat4 uView;
+  uniform mat4 uProjection;
+  uniform float uTime;
+  varying float vTwinkle;
+  void main() {
+    vec4 worldPos = uModel * vec4(aPosition, 1.0);
+    gl_Position = uProjection * uView * worldPos;
+    vTwinkle = 0.55 + 0.45 * sin(uTime * 1.6 + aPhase);
+    gl_PointSize = aSize * vTwinkle;
+  }
+`;
+
+const STAR_FS = `
+  precision mediump float;
+  varying float vTwinkle;
+  uniform vec3 uStarColor;
+  void main() {
+    vec2 d = gl_PointCoord - vec2(0.5);
+    float dist = length(d);
+    float alpha = smoothstep(0.5, 0.0, dist);
+    gl_FragColor = vec4(uStarColor, alpha * vTwinkle);
+  }
+`;
+
+function compileShader(gl, type, src) {
+  const shader = gl.createShader(type);
+  gl.shaderSource(shader, src);
+  gl.compileShader(shader);
+  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+    const info = gl.getShaderInfoLog(shader);
+    gl.deleteShader(shader);
+    throw new Error('Shader compile error: ' + info);
+  }
+  return shader;
+}
+
+function createProgram(gl, vsSrc, fsSrc) {
+  const vs = compileShader(gl, gl.VERTEX_SHADER, vsSrc);
+  const fs = compileShader(gl, gl.FRAGMENT_SHADER, fsSrc);
+  const program = gl.createProgram();
+  gl.attachShader(program, vs);
+  gl.attachShader(program, fs);
+  gl.linkProgram(program);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    throw new Error('Program link error: ' + gl.getProgramInfoLog(program));
+  }
+  return program;
+}
+
+function getUniforms(gl, program, names) {
+  const out = {};
+  names.forEach((n) => { out[n] = gl.getUniformLocation(program, n); });
+  return out;
+}
+
+function makeMeshBuffers(gl, geom) {
+  const posBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, geom.positions, gl.STATIC_DRAW);
+
+  const normBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, normBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, geom.normals, gl.STATIC_DRAW);
+
+  let uvBuf = null;
+  if (geom.uvs) {
+    uvBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, uvBuf);
+    gl.bufferData(gl.ARRAY_BUFFER, geom.uvs, gl.STATIC_DRAW);
+  }
+
+  const idxBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, geom.indices, gl.STATIC_DRAW);
+
+  return { posBuf, normBuf, uvBuf, idxBuf, count: geom.indices.length };
+}
+
+/* ============================================================================
+ * 7. Scene bootstrap: build GPU resources for the globe/clouds/atmosphere/
+ *    stars, then return a render(t, animRoot, camera) function.
+ * ==========================================================================*/
+function initProceduralScene(canvas, sceneConfig) {
+  const gl = canvas.getContext('webgl2') || canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+  if (!gl) throw new Error('WebGL is not available in this browser');
+
+  const rand = mulberry32(sceneConfig.textureSeed);
+  const R = sceneConfig.globeRadius;
+
+  const globeGeom = generateSphereGeometry(R, 48, 96);
+  const cloudGeom = generateSphereGeometry(R * 1.02, 40, 80);
+  const atmoGeom = generateSphereGeometry(R * 1.09, 32, 64);
+
+  const globeBuf = makeMeshBuffers(gl, globeGeom);
+  const cloudBuf = makeMeshBuffers(gl, cloudGeom);
+  const atmoBuf = makeMeshBuffers(gl, atmoGeom);
+
+  const { baseCanvas, emissiveCanvas } = generateGlobeTextures(sceneConfig.textureSeed);
+  const cloudCanvas = generateCloudTexture(sceneConfig.textureSeed + 777);
+  const baseTex = createTextureFromCanvas(gl, baseCanvas);
+  const emissiveTex = createTextureFromCanvas(gl, emissiveCanvas);
+  const cloudTex = createTextureFromCanvas(gl, cloudCanvas);
+
+  const stars = generateStarField(sceneConfig.starCount, sceneConfig.starFieldRadius, rand);
+  const starPosBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, starPosBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, stars.positions, gl.STATIC_DRAW);
+  const starSizeBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, starSizeBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, stars.sizes, gl.STATIC_DRAW);
+  const starPhaseBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, starPhaseBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, stars.phases, gl.STATIC_DRAW);
+
+  const globeProgram = createProgram(gl, GLOBE_VS, GLOBE_FS);
+  const globeAttribs = {
+    aPosition: gl.getAttribLocation(globeProgram, 'aPosition'),
+    aNormal: gl.getAttribLocation(globeProgram, 'aNormal'),
+    aUv: gl.getAttribLocation(globeProgram, 'aUv'),
+  };
+  const globeUniforms = getUniforms(gl, globeProgram, [
+    'uModel', 'uView', 'uProjection', 'uCameraPos', 'uBaseColorTex', 'uBaseColorFactor',
+    'uEmissiveTex', 'uHasEmissiveTex', 'uEmissiveStrength',
+    'uLight1Pos', 'uLight1Color', 'uLight2Pos', 'uLight2Color', 'uAmbient',
+  ]);
+
+  const atmoProgram = createProgram(gl, ATMOSPHERE_VS, ATMOSPHERE_FS);
+  const atmoAttribs = {
+    aPosition: gl.getAttribLocation(atmoProgram, 'aPosition'),
+    aNormal: gl.getAttribLocation(atmoProgram, 'aNormal'),
+  };
+  const atmoUniforms = getUniforms(gl, atmoProgram, [
+    'uModel', 'uView', 'uProjection', 'uCameraPos', 'uColorA', 'uColorB',
+  ]);
+
+  const starProgram = createProgram(gl, STAR_VS, STAR_FS);
+  const starAttribs = {
+    aPosition: gl.getAttribLocation(starProgram, 'aPosition'),
+    aSize: gl.getAttribLocation(starProgram, 'aSize'),
+    aPhase: gl.getAttribLocation(starProgram, 'aPhase'),
+  };
+  const starUniforms = getUniforms(gl, starProgram, [
+    'uModel', 'uView', 'uProjection', 'uTime', 'uStarColor',
+  ]);
+
+  gl.enable(gl.DEPTH_TEST);
+  gl.disable(gl.CULL_FACE);
+
+  const colors = sceneConfig.colorsRGB;
+
+  function render(t, animRoot, camera) {
+    const aspect = canvas.width / canvas.height;
+    const projection = Mat4.perspective((45 * Math.PI) / 180, aspect, 0.1, 100);
+    const view = Mat4.lookAt(camera.eye, [0, 0, 0], [0, 1, 0]);
+
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    // ---- Stars ----------------------------------------------------------
+    gl.useProgram(starProgram);
+    const starRoot = Mat4.rotateY(t * 0.01);
+    gl.uniformMatrix4fv(starUniforms.uModel, false, starRoot);
+    gl.uniformMatrix4fv(starUniforms.uView, false, view);
+    gl.uniformMatrix4fv(starUniforms.uProjection, false, projection);
+    gl.uniform1f(starUniforms.uTime, t);
+    gl.uniform3fv(starUniforms.uStarColor, [0.85, 0.95, 1.0]);
+
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+    gl.depthMask(false);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, starPosBuf);
+    gl.enableVertexAttribArray(starAttribs.aPosition);
+    gl.vertexAttribPointer(starAttribs.aPosition, 3, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, starSizeBuf);
+    gl.enableVertexAttribArray(starAttribs.aSize);
+    gl.vertexAttribPointer(starAttribs.aSize, 1, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, starPhaseBuf);
+    gl.enableVertexAttribArray(starAttribs.aPhase);
+    gl.vertexAttribPointer(starAttribs.aPhase, 1, gl.FLOAT, false, 0, 0);
+    gl.drawArrays(gl.POINTS, 0, sceneConfig.starCount);
+
+    gl.disableVertexAttribArray(starAttribs.aSize);
+    gl.disableVertexAttribArray(starAttribs.aPhase);
+
+    // ---- Globe (opaque) ---------------------------------------------------
+    gl.disable(gl.BLEND);
+    gl.depthMask(true);
+    gl.useProgram(globeProgram);
+    gl.uniformMatrix4fv(globeUniforms.uProjection, false, projection);
+    gl.uniformMatrix4fv(globeUniforms.uView, false, view);
+    gl.uniformMatrix4fv(globeUniforms.uModel, false, animRoot);
+    gl.uniform3fv(globeUniforms.uCameraPos, camera.eye);
+    gl.uniform3fv(globeUniforms.uAmbient, [0.14, 0.17, 0.2]);
+    gl.uniform3fv(globeUniforms.uLight1Pos, [3 + Math.sin(t * 0.4) * 0.6, 2, 3]);
+    gl.uniform3fv(globeUniforms.uLight1Color, colors.primary);
+    gl.uniform3fv(globeUniforms.uLight2Pos, [-3, -1.5 + Math.cos(t * 0.3) * 0.6, -2]);
+    gl.uniform3fv(globeUniforms.uLight2Color, colors.secondary);
+    gl.uniform4fv(globeUniforms.uBaseColorFactor, [1, 1, 1, 1]);
+    gl.uniform1f(globeUniforms.uEmissiveStrength, sceneConfig.emissiveBoost);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, baseTex);
+    gl.uniform1i(globeUniforms.uBaseColorTex, 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, emissiveTex);
+    gl.uniform1i(globeUniforms.uEmissiveTex, 1);
+    gl.uniform1i(globeUniforms.uHasEmissiveTex, 1);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, globeBuf.posBuf);
+    gl.enableVertexAttribArray(globeAttribs.aPosition);
+    gl.vertexAttribPointer(globeAttribs.aPosition, 3, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, globeBuf.normBuf);
+    gl.enableVertexAttribArray(globeAttribs.aNormal);
+    gl.vertexAttribPointer(globeAttribs.aNormal, 3, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, globeBuf.uvBuf);
+    gl.enableVertexAttribArray(globeAttribs.aUv);
+    gl.vertexAttribPointer(globeAttribs.aUv, 2, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, globeBuf.idxBuf);
+    gl.drawElements(gl.TRIANGLES, globeBuf.count, gl.UNSIGNED_SHORT, 0);
+
+    // ---- Atmosphere rim glow ------------------------------------------------
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+    gl.depthMask(false);
+    gl.useProgram(atmoProgram);
+    gl.uniformMatrix4fv(atmoUniforms.uProjection, false, projection);
+    gl.uniformMatrix4fv(atmoUniforms.uView, false, view);
+    gl.uniformMatrix4fv(atmoUniforms.uModel, false, animRoot);
+    gl.uniform3fv(atmoUniforms.uCameraPos, camera.eye);
+    gl.uniform3fv(atmoUniforms.uColorA, colors.secondary);
+    gl.uniform3fv(atmoUniforms.uColorB, colors.primary);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, atmoBuf.posBuf);
+    gl.enableVertexAttribArray(atmoAttribs.aPosition);
+    gl.vertexAttribPointer(atmoAttribs.aPosition, 3, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, atmoBuf.normBuf);
+    gl.enableVertexAttribArray(atmoAttribs.aNormal);
+    gl.vertexAttribPointer(atmoAttribs.aNormal, 3, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, atmoBuf.idxBuf);
+    gl.drawElements(gl.TRIANGLES, atmoBuf.count, gl.UNSIGNED_SHORT, 0);
+
+    // ---- Clouds (alpha blend, drawn last) ------------------------------------
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.useProgram(globeProgram);
+    const cloudModel = Mat4.multiply(animRoot, Mat4.rotateY(t * sceneConfig.cloudRotateSpeed));
+    gl.uniformMatrix4fv(globeUniforms.uModel, false, cloudModel);
+    gl.uniform4fv(globeUniforms.uBaseColorFactor, [1, 1, 1, 0.5]);
+    gl.uniform1i(globeUniforms.uHasEmissiveTex, 0);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, cloudTex);
+    gl.uniform1i(globeUniforms.uBaseColorTex, 0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, cloudBuf.posBuf);
+    gl.enableVertexAttribArray(globeAttribs.aPosition);
+    gl.vertexAttribPointer(globeAttribs.aPosition, 3, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, cloudBuf.normBuf);
+    gl.enableVertexAttribArray(globeAttribs.aNormal);
+    gl.vertexAttribPointer(globeAttribs.aNormal, 3, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, cloudBuf.uvBuf);
+    gl.enableVertexAttribArray(globeAttribs.aUv);
+    gl.vertexAttribPointer(globeAttribs.aUv, 2, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cloudBuf.idxBuf);
+    gl.drawElements(gl.TRIANGLES, cloudBuf.count, gl.UNSIGNED_SHORT, 0);
+
+    gl.depthMask(true);
+    gl.disable(gl.BLEND);
+  }
+
+  return { render };
+}
+
+function hexToRgbArray(hex) {
+  const m = hex.replace('#', '');
+  const bigint = parseInt(m, 16);
+  return [((bigint >> 16) & 255) / 255, ((bigint >> 8) & 255) / 255, (bigint & 255) / 255];
+}
+
+/* ============================================================================
+ * 8. UI wiring: progress bar, telemetry, message ticker, resize, boot.
+ * ==========================================================================*/
+function applyThemeCSSVars(colors) {
+  const root = document.documentElement;
+  root.style.setProperty('--bg-base', colors.bgBase);
+  root.style.setProperty('--bg-vignette', colors.bgVignette);
+  root.style.setProperty('--primary-neon', colors.primaryNeon);
+  root.style.setProperty('--secondary-glow', colors.secondaryGlow);
+  root.style.setProperty('--tertiary-accent', colors.tertiaryAccent);
+  root.style.setProperty('--text-primary', colors.textPrimary);
+  root.style.setProperty('--text-dim', colors.textDim);
+  root.style.setProperty('--hud-border', colors.hudBorder);
+  root.style.setProperty('--bar-track', colors.barTrack);
+}
+
+function buildSegments(track, count) {
+  const frag = document.createDocumentFragment();
+  const segments = [];
+  for (let i = 0; i < count; i++) {
+    const el = document.createElement('div');
+    el.className = 'cpls-segment';
+    frag.appendChild(el);
+    segments.push(el);
+  }
+  track.appendChild(frag);
+  return segments;
+}
+
+function shuffle(arr) {
+  const out = arr.slice();
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+function setupMessageTicker(el, messages, intervalMs) {
+  if (!messages.length) return;
+  const order = shuffle(messages);
+  let index = 0;
+
+  function show(i) {
+    el.classList.remove('visible');
+    window.setTimeout(() => {
+      el.textContent = order[i];
+      void el.offsetWidth;
+      el.classList.add('visible');
+    }, 250);
+  }
+
+  show(index);
+  if (order.length > 1) {
+    window.setInterval(() => {
+      index = (index + 1) % order.length;
+      show(index);
+    }, intervalMs);
+  }
+}
+
+function setupProgress(cfg) {
+  const track = document.getElementById('cpls-bar-track');
+  const segments = buildSegments(track, 40);
+  const percentEl = document.getElementById('cpls-percent-value');
+  const telemetryEl = document.getElementById('cpls-telemetry-text');
+  const elapsedEl = document.getElementById('cpls-elapsed');
+  const bufferEl = document.getElementById('cpls-buffer-stat');
+  const nodesEl = document.getElementById('cpls-nodes-stat');
+
+  let telemetryIdx = 0;
+  telemetryEl.textContent = cfg.telemetrySteps[0];
+  window.setInterval(() => {
+    telemetryIdx = (telemetryIdx + 1) % cfg.telemetrySteps.length;
+    telemetryEl.textContent = telemetryEl.textContent === 'ARCHIVE READY.'
+      ? telemetryEl.textContent
+      : cfg.telemetrySteps[telemetryIdx];
+  }, cfg.telemetryStepMs);
+
+  const start = performance.now();
+  let lastFilled = -1;
+
+  function tick(now) {
+    const elapsed = now - start;
+    const pct = Math.min(100, (elapsed / cfg.durationMs) * 100);
+
+    const filled = Math.round((pct / 100) * segments.length);
+    if (filled !== lastFilled) {
+      for (let i = 0; i < segments.length; i++) {
+        segments[i].classList.toggle('filled', i < filled);
+      }
+      lastFilled = filled;
     }
 
-    function runAll(){
-      tweenBoxes();
-      setTimeout(staggerBoxes, 180);
-      setTimeout(elasticBox, 420);
-      setTimeout(playTimeline, 680);
-      setTimeout(() => scrollStage.scrollTo({ top: 340, behavior: 'smooth' }), 980);
-      setTimeout(flipLayout, 1250);
-      setTimeout(morphLayout, 1500);
-      setTimeout(() => typewriter(currentText()), 1800);
-      setTimeout(() => splitReveal(currentText()), 2300);
-      setTimeout(() => $('#dragBox').style.transform = 'translate(14px, 8px)', 2750);
-      setTimeout(() => $('#dialogOverlay').classList.add('open'), 3100);
-      log(uiLog, 'full showcase started');
+    percentEl.textContent = Math.floor(pct);
+    elapsedEl.textContent = 'T+' + (elapsed / 1000).toFixed(1) + 's';
+    bufferEl.textContent = 'BUFFER: ' + Math.floor(pct) + '%';
+    nodesEl.textContent = 'NODES: ' + (3 + Math.floor(pct / 25)) + '/7 ONLINE';
+
+    if (pct < 100) {
+      requestAnimationFrame(tick);
+    } else {
+      telemetryEl.textContent = 'ARCHIVE READY.';
+      if (typeof cfg.onComplete === 'function') cfg.onComplete();
     }
+  }
+  requestAnimationFrame(tick);
+}
 
-    $('#runAllBtn').onclick = runAll;
-    $('#heroRun').onclick = runAll;
-    $('#drawerRun').onclick = runAll;
-    $('#killBtn').onclick = killAll;
-    $('#resetBtn').onclick = () => location.reload();
-    $('#openDrawerBtn').onclick = () => $('#drawer').classList.add('open');
-    $('#closeDrawerBtn').onclick = () => $('#drawer').classList.remove('open');
-    $('#drawerToast').onclick = () => alert('Drawer toast demo');
-    $('#drawerFlip').onclick = flipLayout;
-    $('#drawerText').onclick = () => typewriter(currentText());
-    $('#heroModal').onclick = () => $('#dialogOverlay').classList.add('open');
+function boot() {
+  applyThemeCSSVars(CONFIG.colors);
 
-    // scroll progress for sidebar active links
-    const anchors = ['hero','motion','timeline','scroll','flip','text','interaction','ui','gallery','diagnostics'].map(id => document.getElementById(id));
-    const navLinks = $$('#nav a');
-    const io = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
-        if(entry.isIntersecting){
-          navLinks.forEach(a => a.classList.remove('active'));
-          const id = entry.target.id;
-          const link = navLinks.find(a => a.getAttribute('href') === `#${id}`);
-          if(link) link.classList.add('active');
-        }
-      });
-    }, { rootMargin: '-35% 0px -55% 0px', threshold: .05 });
-    anchors.forEach(el => el && io.observe(el));
+  document.getElementById('cpls-title').textContent = CONFIG.title;
+  document.getElementById('cpls-title').setAttribute('data-text', CONFIG.title);
+  document.getElementById('cpls-subtitle').textContent = CONFIG.subtitle;
 
-    // cursor ring
-    const ring = $('#cursorRing');
-    document.addEventListener('pointermove', e => {
-      ring.style.left = e.clientX + 'px';
-      ring.style.top = e.clientY + 'px';
+  const logo = document.getElementById('cpls-logo');
+  logo.addEventListener('error', () => { logo.style.display = 'none'; });
+
+  setupMessageTicker(document.getElementById('cpls-message'), CONFIG.messages, CONFIG.messageIntervalMs);
+  setupProgress(CONFIG);
+
+  const canvas = document.getElementById('cpls-canvas');
+  const fallback = document.getElementById('cpls-fallback-orb');
+
+  function resizeCanvas() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.max(1, Math.floor(canvas.clientWidth * dpr));
+    canvas.height = Math.max(1, Math.floor(canvas.clientHeight * dpr));
+  }
+
+  try {
+    const sceneConfig = Object.assign({}, CONFIG.scene, {
+      colorsRGB: {
+        primary: hexToRgbArray(CONFIG.colors.primaryNeon),
+        secondary: hexToRgbArray(CONFIG.colors.secondaryGlow),
+      },
     });
 
-    // diagnostics scanning
-    $('#scanBtn').onclick = () => {
-      const api = lib();
-      if(!api) return featureSummary();
-      const keys = Object.keys(api).sort();
-      apiBox.textContent = `Exported API (${keys.length})
+    resizeCanvas();
+    const scene = initProceduralScene(canvas, sceneConfig);
 
-${keys.map((k, i) => `${String(i+1).padStart(2,'0')}. ${k}`).join('
-')}`;
-      log(uiLog, 'API scan complete');
-    };
+    window.addEventListener('resize', resizeCanvas);
+    if (window.ResizeObserver) new ResizeObserver(resizeCanvas).observe(canvas);
 
-    $('#openOverlayBtn').onclick = () => $('#dialogOverlay').classList.add('open');
+    const clockStart = performance.now();
+    function frame(now) {
+      const t = (now - clockStart) / 1000;
+      const animRoot = Mat4.multiply(
+        Mat4.translate(0, Math.sin(t * CONFIG.scene.floatSpeed) * CONFIG.scene.floatAmplitude, 0),
+        Mat4.rotateY(t * CONFIG.scene.autoRotateSpeed)
+      );
+      const eye = [0, 0, CONFIG.scene.cameraZ];
+      scene.render(t, animRoot, { eye });
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  } catch (err) {
+    console.warn('[CyberpunkLoadingScreen] 3D layer disabled, using CSS fallback:', err);
+    canvas.style.display = 'none';
+    fallback.classList.add('active');
+  }
+}
 
-    // sidebar buttons to make the interface feel like a product demo page
-    $('#heroModal').addEventListener('click', () => log(uiLog, 'overlay requested from hero'));
-    $('#heroRun').addEventListener('click', () => log(uiLog, 'run all requested from hero'));
-
-    // Initial states
-    featureSummary();
-    log(motionLog, 'Motion studio ready');
-    log(timelineLog, 'Timeline lab ready');
-    log(textLog, 'Text lab ready');
-    log(interactionLog, 'Interaction lab ready');
-    log(uiLog, 'UI layer ready');
-    scrollApi.textContent = 'Scroll stage progress: 0%';
-    scrollLog.textContent = '0%';
-    $('#timelineValue').textContent = '0%';
-    $('#durValue').textContent = `${durRange.value}ms`;
-    $('#snapValue').textContent = snapRange.value;
-    $('#frictionValue').textContent = (frictionRange.value/100).toFixed(2);
-    $('#timelineRange').dispatchEvent(new Event('input'));
-
-    // expose helper for easy console testing
-    window.PCShowcase = { runAll, tweenBoxes, staggerBoxes, playTimeline, flipLayout, morphLayout, killAll };
-  </script>
-</body>
-</html>
+document.addEventListener('DOMContentLoaded', boot);
