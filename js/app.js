@@ -2,16 +2,13 @@
  * ============================================================================
  *  Cyberpunk Loading Screen — app.js
  * ----------------------------------------------------------------------------
- *  ZERO external libraries. No three.js, no React, no Tailwind, no Framer
- *  Motion, no CDN, no build step. Everything here is either:
- *    - plain DOM/CSS (UI, progress bar, message ticker, glow/glitch effects)
+ *  ZERO external libraries and ZERO imported 3D model files. No three.js, no
+ *  React, no Tailwind, no Framer Motion, no CDN, no .glb to go stale or look
+ *  distorted. The globe, its "continents" grid texture, the cloud layer and
+ *  the starfield are all generated procedurally at load time with:
+ *    - plain DOM/CSS for the UI (progress bar, ticker, glow/glitch effects)
  *    - the browser's native WebGL API (raw gl.* calls, hand-written shaders)
- *    - a small hand-written glTF/GLB binary parser (reads the .glb format
- *      directly per the official spec, no GLTFLoader)
- *
- *  The 3D model ships pre-encoded as base64 in js/model-data.js (loaded via
- *  a classic <script> tag, so it works from a plain double-clicked file —
- *  no local server, no fetch(), no CORS issues).
+ *    - the browser's native Canvas2D API to paint the globe's textures
  *
  *  Everything customizable lives in CONFIG below.
  * ==========================================================================*/
@@ -61,15 +58,19 @@ const CONFIG = {
   ],
 
   scene: {
-    autoRotateSpeed: 0.12, // rad/sec
-    floatAmplitude: 0.18,
+    globeRadius: 1.55,
+    autoRotateSpeed: 0.14,
+    cloudRotateSpeed: 0.05,
+    floatAmplitude: 0.16,
     floatSpeed: 0.6,
     cameraZ: 4.2,
-    targetSize: 2.4, // normalized model size (world units)
-    emissiveBoost: 2.2, // manual multiplier standing in for KHR_materials_emissive_strength
+    emissiveBoost: 1.15,
+    textureSeed: 1337,
+    starCount: 2200,
+    starFieldRadius: 34,
   },
 
-  onComplete: null, // optional callback, e.g. () => document.getElementById('cpls-root').remove()
+  onComplete: null,
 };
 
 /* ============================================================================
@@ -90,25 +91,8 @@ const Mat4 = {
     }
     return out;
   },
-  fromTRS(t, r, s) {
-    const [x, y, z, w] = r;
-    const x2 = x + x, y2 = y + y, z2 = z + z;
-    const xx = x * x2, xy = x * y2, xz = x * z2;
-    const yy = y * y2, yz = y * z2, zz = z * z2;
-    const wx = w * x2, wy = w * y2, wz = w * z2;
-    const sx = s[0], sy = s[1], sz = s[2];
-    return [
-      (1 - (yy + zz)) * sx, (xy + wz) * sx, (xz - wy) * sx, 0,
-      (xy - wz) * sy, (1 - (xx + zz)) * sy, (yz + wx) * sy, 0,
-      (xz + wy) * sz, (yz - wx) * sz, (1 - (xx + yy)) * sz, 0,
-      t[0], t[1], t[2], 1,
-    ];
-  },
   translate(x, y, z) {
     return [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, z, 1];
-  },
-  scaleUniform(s) {
-    return [s, 0, 0, 0, 0, s, 0, 0, 0, 0, s, 0, 0, 0, 0, 1];
   },
   rotateY(rad) {
     const c = Math.cos(rad), s = Math.sin(rad);
@@ -146,190 +130,265 @@ const Mat4 = {
       -dot(xAxis, eye), -dot(yAxis, eye), -dot(zAxis, eye), 1,
     ];
   },
-  transformPoint(m, p) {
-    const [x, y, z] = p;
-    return [
-      m[0] * x + m[4] * y + m[8] * z + m[12],
-      m[1] * x + m[5] * y + m[9] * z + m[13],
-      m[2] * x + m[6] * y + m[10] * z + m[14],
-    ];
-  },
 };
 
+/** Deterministic PRNG so the procedural globe looks the same (tested-good)
+ *  every load — no seams, no random ugliness. */
+function mulberry32(seed) {
+  return function () {
+    let t = (seed += 0x6d2b79f5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 /* ============================================================================
- * 3. Hand-written GLB (binary glTF 2.0) parser.
- *    Spec: https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#glb-file-format
- *    (No network access needed to read this spec here — this is a direct,
- *    from-scratch implementation of the documented binary layout.)
+ * 3. Procedural sphere geometry (a clean, perfectly round UV sphere — no
+ *    imported mesh, so there is no chance of a distorted/broken model).
  * ==========================================================================*/
-function base64ToUint8Array(base64) {
-  const binaryString = atob(base64);
-  const len = binaryString.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) bytes[i] = binaryString.charCodeAt(i);
-  return bytes;
-}
+function generateSphereGeometry(radius, latBands, lonBands) {
+  const positions = [];
+  const normals = [];
+  const uvs = [];
+  const indices = [];
 
-function parseGLB(bytes) {
-  const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const magic = dv.getUint32(0, true);
-  if (magic !== 0x46546c67) throw new Error('Not a valid GLB file (bad magic)');
-  const version = dv.getUint32(4, true);
-  const totalLength = dv.getUint32(8, true);
-
-  let offset = 12;
-  let json = null;
-  let bin = null;
-
-  while (offset < totalLength) {
-    const chunkLength = dv.getUint32(offset, true);
-    const chunkType = dv.getUint32(offset + 4, true);
-    const chunkStart = offset + 8;
-    if (chunkType === 0x4e4f534a) {
-      // 'JSON'
-      const jsonBytes = bytes.subarray(chunkStart, chunkStart + chunkLength);
-      json = JSON.parse(new TextDecoder('utf-8').decode(jsonBytes));
-    } else if (chunkType === 0x004e4942) {
-      // 'BIN\0'
-      bin = bytes.subarray(chunkStart, chunkStart + chunkLength);
-    }
-    offset = chunkStart + chunkLength;
-  }
-  if (!json) throw new Error('GLB file has no JSON chunk');
-  return { json, bin, version };
-}
-
-const COMPONENT_BYTES = { 5120: 1, 5121: 1, 5122: 2, 5123: 2, 5125: 4, 5126: 4 };
-const TYPE_NUM_COMPONENTS = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4, MAT2: 4, MAT3: 9, MAT4: 16 };
-
-function componentGetter(dv, componentType) {
-  switch (componentType) {
-    case 5120: return (o) => dv.getInt8(o);
-    case 5121: return (o) => dv.getUint8(o);
-    case 5122: return (o) => dv.getInt16(o, true);
-    case 5123: return (o) => dv.getUint16(o, true);
-    case 5125: return (o) => dv.getUint32(o, true);
-    case 5126: return (o) => dv.getFloat32(o, true);
-    default: throw new Error('Unsupported componentType ' + componentType);
-  }
-}
-
-/** Reads any glTF accessor into a flat Float32Array (attributes) regardless
- *  of interleaving/stride — a small, general-purpose accessor reader. */
-function readAccessor(json, bin, accessorIndex) {
-  const accessor = json.accessors[accessorIndex];
-  const numComponents = TYPE_NUM_COMPONENTS[accessor.type];
-  const count = accessor.count;
-  const out = new Float32Array(count * numComponents);
-  if (accessor.bufferView === undefined) return out; // sparse accessors not supported; returns zeros
-
-  const bufferView = json.bufferViews[accessor.bufferView];
-  const componentBytes = COMPONENT_BYTES[accessor.componentType];
-  const elementBytes = numComponents * componentBytes;
-  const stride = bufferView.byteStride || elementBytes;
-  const baseOffset = (bufferView.byteOffset || 0) + (accessor.byteOffset || 0);
-
-  const dv = new DataView(bin.buffer, bin.byteOffset + baseOffset, bin.byteLength - baseOffset);
-  const get = componentGetter(dv, accessor.componentType);
-
-  for (let i = 0; i < count; i++) {
-    const elOffset = i * stride;
-    for (let c = 0; c < numComponents; c++) {
-      out[i * numComponents + c] = get(elOffset + c * componentBytes);
+  for (let lat = 0; lat <= latBands; lat++) {
+    const theta = (lat * Math.PI) / latBands;
+    const sinTheta = Math.sin(theta);
+    const cosTheta = Math.cos(theta);
+    for (let lon = 0; lon <= lonBands; lon++) {
+      const phi = (lon * 2 * Math.PI) / lonBands;
+      const sinPhi = Math.sin(phi);
+      const cosPhi = Math.cos(phi);
+      const x = cosPhi * sinTheta;
+      const y = cosTheta;
+      const z = sinPhi * sinTheta;
+      normals.push(x, y, z);
+      positions.push(radius * x, radius * y, radius * z);
+      uvs.push(1 - lon / lonBands, lat / latBands);
     }
   }
-  return out;
-}
 
-function readIndices(json, bin, accessorIndex) {
-  const floatVals = readAccessor(json, bin, accessorIndex);
-  const out = new Uint32Array(floatVals.length);
-  for (let i = 0; i < floatVals.length; i++) out[i] = Math.round(floatVals[i]);
-  return out;
-}
-
-/** Walks the default scene's node hierarchy, computing each node's world
- *  matrix (no animation/skinning support — first/default pose only). */
-function buildBaseWorldMatrices(json) {
-  const baseWorld = new Array(json.nodes.length).fill(null);
-  function visit(nodeIndex, parentMatrix) {
-    const node = json.nodes[nodeIndex];
-    let local;
-    if (node.matrix) {
-      local = node.matrix;
-    } else {
-      const t = node.translation || [0, 0, 0];
-      const r = node.rotation || [0, 0, 0, 1];
-      const s = node.scale || [1, 1, 1];
-      local = Mat4.fromTRS(t, r, s);
+  for (let lat = 0; lat < latBands; lat++) {
+    for (let lon = 0; lon < lonBands; lon++) {
+      const first = lat * (lonBands + 1) + lon;
+      const second = first + lonBands + 1;
+      indices.push(first, second, first + 1);
+      indices.push(second, second + 1, first + 1);
     }
-    const world = Mat4.multiply(parentMatrix, local);
-    baseWorld[nodeIndex] = world;
-    (node.children || []).forEach((ci) => visit(ci, world));
   }
-  const sceneDef = json.scenes[json.scene || 0];
-  (sceneDef.nodes || []).forEach((rootIdx) => visit(rootIdx, Mat4.identity()));
-  return baseWorld;
+
+  return {
+    positions: new Float32Array(positions),
+    normals: new Float32Array(normals),
+    uvs: new Float32Array(uvs),
+    indices: new Uint16Array(indices),
+  };
 }
 
-function collectPrimitives(json) {
-  const list = [];
-  json.nodes.forEach((node, idx) => {
-    if (node.mesh !== undefined) {
-      const mesh = json.meshes[node.mesh];
-      mesh.primitives.forEach((prim) => {
-        if (prim.mode !== undefined && prim.mode !== 4) return; // TRIANGLES only
-        list.push({ nodeIndex: idx, prim });
-      });
-    }
-  });
-  return list;
-}
-
-/** Computes a matrix that centers + uniformly scales the whole model to
- *  `targetSize`, using each POSITION accessor's min/max (required by spec)
- *  transformed by that primitive's node world matrix — no full vertex scan
- *  needed. */
-function computeNormalizeMatrix(json, baseWorld, primitives, targetSize) {
-  let minAll = [Infinity, Infinity, Infinity];
-  let maxAll = [-Infinity, -Infinity, -Infinity];
-
-  primitives.forEach(({ nodeIndex, prim }) => {
-    const posAccessor = json.accessors[prim.attributes.POSITION];
-    if (!posAccessor || !posAccessor.min || !posAccessor.max) return;
-    const mn = posAccessor.min, mx = posAccessor.max;
-    const world = baseWorld[nodeIndex];
-    for (let i = 0; i < 8; i++) {
-      const corner = [
-        i & 1 ? mx[0] : mn[0],
-        i & 2 ? mx[1] : mn[1],
-        i & 4 ? mx[2] : mn[2],
-      ];
-      const p = Mat4.transformPoint(world, corner);
-      for (let a = 0; a < 3; a++) {
-        if (p[a] < minAll[a]) minAll[a] = p[a];
-        if (p[a] > maxAll[a]) maxAll[a] = p[a];
+/* ============================================================================
+ * 4. Procedural textures for the globe — painted with Canvas2D.
+ *    Equirectangular (2:1) so they map cleanly onto the UV sphere above.
+ * ==========================================================================*/
+function paintContinentMask(ctx, W, H, rand) {
+  ctx.fillStyle = '#ffffff';
+  const numContinents = 7 + Math.floor(rand() * 3);
+  for (let c = 0; c < numContinents; c++) {
+    let x = rand() * W;
+    let y = H * 0.15 + rand() * H * 0.7;
+    const blobs = 26 + Math.floor(rand() * 30);
+    for (let b = 0; b < blobs; b++) {
+      const r = 10 + rand() * 26;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+      if (x - r < 0) {
+        ctx.beginPath();
+        ctx.arc(x + W, y, r, 0, Math.PI * 2);
+        ctx.fill();
       }
+      if (x + r > W) {
+        ctx.beginPath();
+        ctx.arc(x - W, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      x += (rand() - 0.5) * 34;
+      y += (rand() - 0.5) * 22;
+      y = Math.max(H * 0.08, Math.min(H * 0.92, y));
     }
-  });
+  }
+}
 
-  const center = [
-    (minAll[0] + maxAll[0]) / 2,
-    (minAll[1] + maxAll[1]) / 2,
-    (minAll[2] + maxAll[2]) / 2,
-  ];
-  const size = [maxAll[0] - minAll[0], maxAll[1] - minAll[1], maxAll[2] - minAll[2]];
-  const maxDim = Math.max(size[0], size[1], size[2]) || 1;
-  const scale = targetSize / maxDim;
+function drawGrid(ctx, W, H, strokeStyle, shadowColor, shadowBlur) {
+  ctx.save();
+  ctx.strokeStyle = strokeStyle;
+  ctx.lineWidth = 1;
+  ctx.shadowColor = shadowColor;
+  ctx.shadowBlur = shadowBlur;
+  for (let lon = 0; lon <= W; lon += W / 24) {
+    ctx.beginPath();
+    ctx.moveTo(lon, 0);
+    ctx.lineTo(lon, H);
+    ctx.stroke();
+  }
+  for (let lat = 0; lat <= H; lat += H / 12) {
+    ctx.beginPath();
+    ctx.moveTo(0, lat);
+    ctx.lineTo(W, lat);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
 
-  return Mat4.multiply(Mat4.scaleUniform(scale), Mat4.translate(-center[0], -center[1], -center[2]));
+function generateGlobeTextures(seed) {
+  const W = 1024, H = 512;
+  const rand = mulberry32(seed);
+
+  const maskCanvas = document.createElement('canvas');
+  maskCanvas.width = W; maskCanvas.height = H;
+  const mctx = maskCanvas.getContext('2d');
+  paintContinentMask(mctx, W, H, rand);
+  const maskData = mctx.getImageData(0, 0, W, H).data;
+
+  const landCanvas = document.createElement('canvas');
+  landCanvas.width = W; landCanvas.height = H;
+  const lctx = landCanvas.getContext('2d');
+  const landGrad = lctx.createLinearGradient(0, 0, 0, H);
+  landGrad.addColorStop(0, '#0d2b33');
+  landGrad.addColorStop(0.5, '#123842');
+  landGrad.addColorStop(1, '#0d2b33');
+  lctx.fillStyle = landGrad;
+  lctx.fillRect(0, 0, W, H);
+  lctx.globalCompositeOperation = 'destination-in';
+  lctx.drawImage(maskCanvas, 0, 0);
+
+  const baseCanvas = document.createElement('canvas');
+  baseCanvas.width = W; baseCanvas.height = H;
+  const bctx = baseCanvas.getContext('2d');
+  const oceanGrad = bctx.createLinearGradient(0, 0, 0, H);
+  oceanGrad.addColorStop(0, '#020a10');
+  oceanGrad.addColorStop(0.5, '#04141c');
+  oceanGrad.addColorStop(1, '#020a10');
+  bctx.fillStyle = oceanGrad;
+  bctx.fillRect(0, 0, W, H);
+  bctx.drawImage(landCanvas, 0, 0);
+  bctx.save();
+  bctx.globalAlpha = 0.25;
+  bctx.globalCompositeOperation = 'lighten';
+  bctx.drawImage(landCanvas, 0, 0);
+  bctx.restore();
+  drawGrid(bctx, W, H, 'rgba(40,246,255,0.28)', 'rgba(40,246,255,0.5)', 2);
+
+  const emissiveCanvas = document.createElement('canvas');
+  emissiveCanvas.width = W; emissiveCanvas.height = H;
+  const ectx = emissiveCanvas.getContext('2d');
+  ectx.fillStyle = '#000000';
+  ectx.fillRect(0, 0, W, H);
+  drawGrid(ectx, W, H, 'rgba(40,246,255,0.85)', '#28f6ff', 4);
+
+  const numLights = 260;
+  let placed = 0, attempts = 0;
+  while (placed < numLights && attempts < numLights * 25) {
+    attempts++;
+    const px = Math.floor(rand() * W);
+    const py = Math.floor(rand() * H);
+    const idx = (py * W + px) * 4;
+    if (maskData[idx + 3] > 120) {
+      const cyan = rand() < 0.72;
+      const rgb = cyan ? '40,246,255' : '255,43,214';
+      const r = 0.6 + rand() * 1.2;
+      ectx.beginPath();
+      ectx.fillStyle = `rgba(${rgb},${0.85 + rand() * 0.15})`;
+      ectx.shadowColor = `rgba(${rgb},1)`;
+      ectx.shadowBlur = 3;
+      ectx.arc(px, py, r, 0, Math.PI * 2);
+      ectx.fill();
+      placed++;
+    }
+  }
+
+  return { baseCanvas, emissiveCanvas };
+}
+
+function generateCloudTexture(seed) {
+  const W = 1024, H = 512;
+  const rand = mulberry32(seed);
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = 'rgba(230,250,255,1)';
+
+  const clusters = 11;
+  for (let c = 0; c < clusters; c++) {
+    let x = rand() * W;
+    let y = H * 0.12 + rand() * H * 0.76;
+    const blobs = 18 + Math.floor(rand() * 20);
+    for (let b = 0; b < blobs; b++) {
+      const r = 14 + rand() * 30;
+      ctx.save();
+      ctx.globalAlpha = 0.05 + rand() * 0.11;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+      if (x - r < 0) {
+        ctx.beginPath();
+        ctx.arc(x + W, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      if (x + r > W) {
+        ctx.beginPath();
+        ctx.arc(x - W, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+      x += (rand() - 0.5) * 40;
+      y += (rand() - 0.5) * 20;
+    }
+  }
+  return canvas;
+}
+
+function createTextureFromCanvas(gl, canvas) {
+  const tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+  gl.generateMipmap(gl.TEXTURE_2D);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  return tex;
 }
 
 /* ============================================================================
- * 4. WebGL: shaders, texture decode (native createImageBitmap — no library),
- *    buffer setup, and the render loop.
+ * 5. Starfield generation — points scattered uniformly on a large sphere.
  * ==========================================================================*/
-const VERTEX_SHADER_SRC = `
+function generateStarField(count, radius, rand) {
+  const positions = new Float32Array(count * 3);
+  const sizes = new Float32Array(count);
+  const phases = new Float32Array(count);
+  for (let i = 0; i < count; i++) {
+    const u = rand();
+    const v = rand();
+    const theta = 2 * Math.PI * u;
+    const phi = Math.acos(2 * v - 1);
+    const r = radius * (0.55 + rand() * 0.45);
+    positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+    positions[i * 3 + 1] = r * Math.cos(phi);
+    positions[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+    sizes[i] = 1 + rand() * 2.4;
+    phases[i] = rand() * Math.PI * 2;
+  }
+  return { positions, sizes, phases };
+}
+
+/* ============================================================================
+ * 6. Shaders.
+ * ==========================================================================*/
+const GLOBE_VS = `
   attribute vec3 aPosition;
   attribute vec3 aNormal;
   attribute vec2 aUv;
@@ -354,7 +413,7 @@ const VERTEX_SHADER_SRC = `
   }
 `;
 
-const FRAGMENT_SHADER_SRC = `
+const GLOBE_FS = `
   precision mediump float;
 
   varying vec3 vNormalW;
@@ -363,12 +422,9 @@ const FRAGMENT_SHADER_SRC = `
   varying vec3 vViewDir;
 
   uniform sampler2D uBaseColorTex;
-  uniform bool uHasBaseColorTex;
   uniform vec4 uBaseColorFactor;
-
   uniform sampler2D uEmissiveTex;
   uniform bool uHasEmissiveTex;
-  uniform vec3 uEmissiveFactor;
   uniform float uEmissiveStrength;
 
   uniform vec3 uLight1Pos; uniform vec3 uLight1Color;
@@ -377,12 +433,10 @@ const FRAGMENT_SHADER_SRC = `
 
   void main() {
     vec3 N = normalize(vNormalW);
+    vec4 base = uBaseColorFactor * texture2D(uBaseColorTex, vUv);
 
-    vec4 base = uBaseColorFactor;
-    if (uHasBaseColorTex) base *= texture2D(uBaseColorTex, vUv);
-
-    vec3 emissive = uEmissiveFactor * uEmissiveStrength;
-    if (uHasEmissiveTex) emissive *= texture2D(uEmissiveTex, vUv).rgb;
+    vec3 emissive = vec3(0.0);
+    if (uHasEmissiveTex) emissive = texture2D(uEmissiveTex, vUv).rgb * uEmissiveStrength;
 
     vec3 L1 = normalize(uLight1Pos - vWorldPos);
     vec3 L2 = normalize(uLight2Pos - vWorldPos);
@@ -391,12 +445,71 @@ const FRAGMENT_SHADER_SRC = `
 
     vec3 V = normalize(vViewDir);
     float fresnel = pow(1.0 - max(dot(N, V), 0.0), 2.5);
-    vec3 rim = fresnel * (uLight1Color + uLight2Color) * 0.6;
+    vec3 rim = fresnel * (uLight1Color + uLight2Color) * 0.5;
 
     vec3 lit = uAmbient * base.rgb + d1 * uLight1Color * base.rgb + d2 * uLight2Color * base.rgb;
-    vec3 color = lit + emissive + rim;
+    gl_FragColor = vec4(lit + emissive + rim, base.a);
+  }
+`;
 
-    gl_FragColor = vec4(color, base.a);
+const ATMOSPHERE_VS = `
+  attribute vec3 aPosition;
+  attribute vec3 aNormal;
+  uniform mat4 uModel;
+  uniform mat4 uView;
+  uniform mat4 uProjection;
+  varying vec3 vNormalW;
+  varying vec3 vWorldPos;
+  void main() {
+    vec4 worldPos = uModel * vec4(aPosition, 1.0);
+    vWorldPos = worldPos.xyz;
+    vNormalW = mat3(uModel) * aNormal;
+    gl_Position = uProjection * uView * worldPos;
+  }
+`;
+
+const ATMOSPHERE_FS = `
+  precision mediump float;
+  varying vec3 vNormalW;
+  varying vec3 vWorldPos;
+  uniform vec3 uCameraPos;
+  uniform vec3 uColorA;
+  uniform vec3 uColorB;
+  void main() {
+    vec3 N = normalize(vNormalW);
+    vec3 V = normalize(uCameraPos - vWorldPos);
+    float fres = pow(1.0 - max(dot(N, V), 0.0), 3.0);
+    vec3 color = mix(uColorA, uColorB, fres);
+    gl_FragColor = vec4(color, fres * 0.85);
+  }
+`;
+
+const STAR_VS = `
+  attribute vec3 aPosition;
+  attribute float aSize;
+  attribute float aPhase;
+  uniform mat4 uModel;
+  uniform mat4 uView;
+  uniform mat4 uProjection;
+  uniform float uTime;
+  varying float vTwinkle;
+  void main() {
+    vec4 worldPos = uModel * vec4(aPosition, 1.0);
+    gl_Position = uProjection * uView * worldPos;
+    vTwinkle = 0.55 + 0.45 * sin(uTime * 1.6 + aPhase);
+    gl_PointSize = aSize * vTwinkle;
+  }
+`;
+
+const STAR_FS = `
+  precision mediump float;
+  varying float vTwinkle;
+  uniform vec3 uStarColor;
+  void main() {
+    vec2 d = gl_PointCoord - vec2(0.5);
+    float dist = length(d);
+    float alpha = smoothstep(0.5, 0.0, dist);
+    gl_FragColor = vec4(uStarColor, alpha * vTwinkle);
   }
 `;
 
@@ -420,192 +533,109 @@ function createProgram(gl, vsSrc, fsSrc) {
   gl.attachShader(program, fs);
   gl.linkProgram(program);
   if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-    const info = gl.getProgramInfoLog(program);
-    throw new Error('Program link error: ' + info);
+    throw new Error('Program link error: ' + gl.getProgramInfoLog(program));
   }
   return program;
 }
 
-async function decodeImageToBitmap(blob) {
-  if (window.createImageBitmap) {
-    return createImageBitmap(blob);
-  }
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = URL.createObjectURL(blob);
-  });
+function getUniforms(gl, program, names) {
+  const out = {};
+  names.forEach((n) => { out[n] = gl.getUniformLocation(program, n); });
+  return out;
 }
 
-async function loadGLTexture(gl, json, bin, textureIndex, cache) {
-  if (cache.has(textureIndex)) return cache.get(textureIndex);
-  const texDef = json.textures[textureIndex];
-  const imgDef = json.images[texDef.source];
-
-  let blob;
-  if (imgDef.bufferView !== undefined) {
-    const bv = json.bufferViews[imgDef.bufferView];
-    const bytes = bin.subarray(bv.byteOffset || 0, (bv.byteOffset || 0) + bv.byteLength);
-    blob = new Blob([bytes], { type: imgDef.mimeType || 'image/png' });
-  } else if (imgDef.uri && imgDef.uri.indexOf('data:') === 0) {
-    const res = await fetch(imgDef.uri); // data: URIs decode locally, no network call
-    blob = await res.blob();
-  } else {
-    cache.set(textureIndex, null);
-    return null; // external file URIs are out of scope for an offline bundle
-  }
-
-  const bitmap = await decodeImageToBitmap(blob);
-  const tex = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, tex);
-  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, bitmap);
-  const isPOT = (v) => (v & (v - 1)) === 0;
-  if (isPOT(bitmap.width) && isPOT(bitmap.height)) {
-    gl.generateMipmap(gl.TEXTURE_2D);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
-  } else {
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  }
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-
-  cache.set(textureIndex, tex);
-  return tex;
-}
-
-function createPrimitiveBuffers(gl, json, bin, prim) {
-  const positions = readAccessor(json, bin, prim.attributes.POSITION);
-  const normals = prim.attributes.NORMAL !== undefined ? readAccessor(json, bin, prim.attributes.NORMAL) : null;
-  const uvs = prim.attributes.TEXCOORD_0 !== undefined ? readAccessor(json, bin, prim.attributes.TEXCOORD_0) : null;
-
-  let indices = null;
-  let useUint16 = false;
-  if (prim.indices !== undefined) {
-    indices = readIndices(json, bin, prim.indices);
-  }
-
+function makeMeshBuffers(gl, geom) {
   const posBuf = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
-  gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+  gl.bufferData(gl.ARRAY_BUFFER, geom.positions, gl.STATIC_DRAW);
 
-  let normBuf = null;
-  if (normals) {
-    normBuf = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, normBuf);
-    gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW);
-  }
+  const normBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, normBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, geom.normals, gl.STATIC_DRAW);
 
   let uvBuf = null;
-  if (uvs) {
+  if (geom.uvs) {
     uvBuf = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, uvBuf);
-    gl.bufferData(gl.ARRAY_BUFFER, uvs, gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, geom.uvs, gl.STATIC_DRAW);
   }
 
-  let idxBuf = null, count;
-  if (indices) {
-    const canUseUint32 = gl.getExtension('OES_element_index_uint') || gl.constructor.name === 'WebGL2RenderingContext';
-    let idxData = indices;
-    if (!canUseUint32) {
-      const maxIdx = indices.reduce((m, v) => Math.max(m, v), 0);
-      if (maxIdx <= 65535) {
-        idxData = new Uint16Array(indices);
-        useUint16 = true;
-      } else {
-        console.warn('[CyberpunkLoadingScreen] Primitive skipped: too many vertices for 16-bit indices and no 32-bit index support.');
-        return null;
-      }
-    }
-    idxBuf = gl.createBuffer();
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf);
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idxData, gl.STATIC_DRAW);
-    count = indices.length;
-  } else {
-    count = positions.length / 3;
-  }
+  const idxBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, geom.indices, gl.STATIC_DRAW);
 
-  return { posBuf, normBuf, uvBuf, idxBuf, count, hasIndices: !!indices, useUint16 };
+  return { posBuf, normBuf, uvBuf, idxBuf, count: geom.indices.length };
 }
 
 /* ============================================================================
- * 5. Scene bootstrap: parse GLB, build GPU resources, run the render loop.
+ * 7. Scene bootstrap: build GPU resources for the globe/clouds/atmosphere/
+ *    stars, then return a render(t, animRoot, camera) function.
  * ==========================================================================*/
-async function initScene(canvas, base64Model, sceneConfig) {
+function initProceduralScene(canvas, sceneConfig) {
   const gl = canvas.getContext('webgl2') || canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
   if (!gl) throw new Error('WebGL is not available in this browser');
 
-  const bytes = base64ToUint8Array(base64Model);
-  const { json, bin } = parseGLB(bytes);
-  if (!bin) throw new Error('GLB file has no binary chunk');
+  const rand = mulberry32(sceneConfig.textureSeed);
+  const R = sceneConfig.globeRadius;
 
-  const program = createProgram(gl, VERTEX_SHADER_SRC, FRAGMENT_SHADER_SRC);
-  const attribs = {
-    aPosition: gl.getAttribLocation(program, 'aPosition'),
-    aNormal: gl.getAttribLocation(program, 'aNormal'),
-    aUv: gl.getAttribLocation(program, 'aUv'),
+  const globeGeom = generateSphereGeometry(R, 48, 96);
+  const cloudGeom = generateSphereGeometry(R * 1.02, 40, 80);
+  const atmoGeom = generateSphereGeometry(R * 1.09, 32, 64);
+
+  const globeBuf = makeMeshBuffers(gl, globeGeom);
+  const cloudBuf = makeMeshBuffers(gl, cloudGeom);
+  const atmoBuf = makeMeshBuffers(gl, atmoGeom);
+
+  const { baseCanvas, emissiveCanvas } = generateGlobeTextures(sceneConfig.textureSeed);
+  const cloudCanvas = generateCloudTexture(sceneConfig.textureSeed + 777);
+  const baseTex = createTextureFromCanvas(gl, baseCanvas);
+  const emissiveTex = createTextureFromCanvas(gl, emissiveCanvas);
+  const cloudTex = createTextureFromCanvas(gl, cloudCanvas);
+
+  const stars = generateStarField(sceneConfig.starCount, sceneConfig.starFieldRadius, rand);
+  const starPosBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, starPosBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, stars.positions, gl.STATIC_DRAW);
+  const starSizeBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, starSizeBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, stars.sizes, gl.STATIC_DRAW);
+  const starPhaseBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, starPhaseBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, stars.phases, gl.STATIC_DRAW);
+
+  const globeProgram = createProgram(gl, GLOBE_VS, GLOBE_FS);
+  const globeAttribs = {
+    aPosition: gl.getAttribLocation(globeProgram, 'aPosition'),
+    aNormal: gl.getAttribLocation(globeProgram, 'aNormal'),
+    aUv: gl.getAttribLocation(globeProgram, 'aUv'),
   };
-  const uniforms = {};
-  ['uModel', 'uView', 'uProjection', 'uCameraPos', 'uBaseColorTex', 'uHasBaseColorTex',
-    'uBaseColorFactor', 'uEmissiveTex', 'uHasEmissiveTex', 'uEmissiveFactor', 'uEmissiveStrength',
-    'uLight1Pos', 'uLight1Color', 'uLight2Pos', 'uLight2Color', 'uAmbient'].forEach((name) => {
-    uniforms[name] = gl.getUniformLocation(program, name);
-  });
+  const globeUniforms = getUniforms(gl, globeProgram, [
+    'uModel', 'uView', 'uProjection', 'uCameraPos', 'uBaseColorTex', 'uBaseColorFactor',
+    'uEmissiveTex', 'uHasEmissiveTex', 'uEmissiveStrength',
+    'uLight1Pos', 'uLight1Color', 'uLight2Pos', 'uLight2Color', 'uAmbient',
+  ]);
 
-  const baseWorld = buildBaseWorldMatrices(json);
-  const primitives = collectPrimitives(json);
-  const normalizeMatrix = computeNormalizeMatrix(json, baseWorld, primitives, sceneConfig.targetSize);
+  const atmoProgram = createProgram(gl, ATMOSPHERE_VS, ATMOSPHERE_FS);
+  const atmoAttribs = {
+    aPosition: gl.getAttribLocation(atmoProgram, 'aPosition'),
+    aNormal: gl.getAttribLocation(atmoProgram, 'aNormal'),
+  };
+  const atmoUniforms = getUniforms(gl, atmoProgram, [
+    'uModel', 'uView', 'uProjection', 'uCameraPos', 'uColorA', 'uColorB',
+  ]);
 
-  const textureCache = new Map();
-  const drawList = [];
-  for (const { nodeIndex, prim } of primitives) {
-    const buffers = createPrimitiveBuffers(gl, json, bin, prim);
-    if (!buffers) continue;
-
-    const material = prim.material !== undefined ? json.materials[prim.material] : {};
-    const pbr = material.pbrMetallicRoughness || {};
-    const baseColorFactor = pbr.baseColorFactor || [1, 1, 1, 1];
-    const emissiveFactor = material.emissiveFactor || [0, 0, 0];
-    const alphaMode = material.alphaMode || 'OPAQUE';
-
-    let baseColorTex = null;
-    if (pbr.baseColorTexture) {
-      baseColorTex = await loadGLTexture(gl, json, bin, pbr.baseColorTexture.index, textureCache);
-    }
-    let emissiveTex = null;
-    if (material.emissiveTexture) {
-      emissiveTex = await loadGLTexture(gl, json, bin, material.emissiveTexture.index, textureCache);
-    }
-    let emissiveStrength = 1;
-    if (material.extensions && material.extensions.KHR_materials_emissive_strength) {
-      emissiveStrength = material.extensions.KHR_materials_emissive_strength.emissiveStrength || 1;
-    }
-    // Extension is ignored numerically at full HDR value (no bloom pass here);
-    // scale it down to something sane for LDR display, boosted by CONFIG.
-    emissiveStrength = Math.min(1.6, Math.log2(1 + emissiveStrength)) * sceneConfig.emissiveBoost * 0.35;
-
-    const combinedBase = Mat4.multiply(normalizeMatrix, baseWorld[nodeIndex]);
-
-    drawList.push({
-      buffers,
-      combinedBase,
-      baseColorFactor,
-      baseColorTex,
-      emissiveFactor,
-      emissiveTex,
-      emissiveStrength,
-      transparent: alphaMode === 'BLEND',
-    });
-  }
-
-  drawList.sort((a, b) => (a.transparent === b.transparent ? 0 : a.transparent ? 1 : -1));
+  const starProgram = createProgram(gl, STAR_VS, STAR_FS);
+  const starAttribs = {
+    aPosition: gl.getAttribLocation(starProgram, 'aPosition'),
+    aSize: gl.getAttribLocation(starProgram, 'aSize'),
+    aPhase: gl.getAttribLocation(starProgram, 'aPhase'),
+  };
+  const starUniforms = getUniforms(gl, starProgram, [
+    'uModel', 'uView', 'uProjection', 'uTime', 'uStarColor',
+  ]);
 
   gl.enable(gl.DEPTH_TEST);
-  gl.disable(gl.CULL_FACE); // model is authored doubleSided
+  gl.disable(gl.CULL_FACE);
 
   const colors = sceneConfig.colorsRGB;
 
@@ -618,82 +648,115 @@ async function initScene(canvas, base64Model, sceneConfig) {
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    gl.useProgram(program);
-    gl.uniformMatrix4fv(uniforms.uProjection, false, projection);
-    gl.uniformMatrix4fv(uniforms.uView, false, view);
-    gl.uniform3fv(uniforms.uCameraPos, camera.eye);
-    gl.uniform3fv(uniforms.uAmbient, [0.16, 0.19, 0.22]);
-    gl.uniform3fv(uniforms.uLight1Pos, [3 + Math.sin(t * 0.4) * 0.6, 2, 3]);
-    gl.uniform3fv(uniforms.uLight1Color, colors.primary);
-    gl.uniform3fv(uniforms.uLight2Pos, [-3, -1.5 + Math.cos(t * 0.3) * 0.6, -2]);
-    gl.uniform3fv(uniforms.uLight2Color, colors.secondary);
+    // ---- Stars ----------------------------------------------------------
+    gl.useProgram(starProgram);
+    const starRoot = Mat4.rotateY(t * 0.01);
+    gl.uniformMatrix4fv(starUniforms.uModel, false, starRoot);
+    gl.uniformMatrix4fv(starUniforms.uView, false, view);
+    gl.uniformMatrix4fv(starUniforms.uProjection, false, projection);
+    gl.uniform1f(starUniforms.uTime, t);
+    gl.uniform3fv(starUniforms.uStarColor, [0.85, 0.95, 1.0]);
 
-    let depthMaskOpen = true;
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+    gl.depthMask(false);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, starPosBuf);
+    gl.enableVertexAttribArray(starAttribs.aPosition);
+    gl.vertexAttribPointer(starAttribs.aPosition, 3, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, starSizeBuf);
+    gl.enableVertexAttribArray(starAttribs.aSize);
+    gl.vertexAttribPointer(starAttribs.aSize, 1, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, starPhaseBuf);
+    gl.enableVertexAttribArray(starAttribs.aPhase);
+    gl.vertexAttribPointer(starAttribs.aPhase, 1, gl.FLOAT, false, 0, 0);
+    gl.drawArrays(gl.POINTS, 0, sceneConfig.starCount);
+
+    gl.disableVertexAttribArray(starAttribs.aSize);
+    gl.disableVertexAttribArray(starAttribs.aPhase);
+
+    // ---- Globe (opaque) ---------------------------------------------------
+    gl.disable(gl.BLEND);
+    gl.depthMask(true);
+    gl.useProgram(globeProgram);
+    gl.uniformMatrix4fv(globeUniforms.uProjection, false, projection);
+    gl.uniformMatrix4fv(globeUniforms.uView, false, view);
+    gl.uniformMatrix4fv(globeUniforms.uModel, false, animRoot);
+    gl.uniform3fv(globeUniforms.uCameraPos, camera.eye);
+    gl.uniform3fv(globeUniforms.uAmbient, [0.14, 0.17, 0.2]);
+    gl.uniform3fv(globeUniforms.uLight1Pos, [3 + Math.sin(t * 0.4) * 0.6, 2, 3]);
+    gl.uniform3fv(globeUniforms.uLight1Color, colors.primary);
+    gl.uniform3fv(globeUniforms.uLight2Pos, [-3, -1.5 + Math.cos(t * 0.3) * 0.6, -2]);
+    gl.uniform3fv(globeUniforms.uLight2Color, colors.secondary);
+    gl.uniform4fv(globeUniforms.uBaseColorFactor, [1, 1, 1, 1]);
+    gl.uniform1f(globeUniforms.uEmissiveStrength, sceneConfig.emissiveBoost);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, baseTex);
+    gl.uniform1i(globeUniforms.uBaseColorTex, 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, emissiveTex);
+    gl.uniform1i(globeUniforms.uEmissiveTex, 1);
+    gl.uniform1i(globeUniforms.uHasEmissiveTex, 1);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, globeBuf.posBuf);
+    gl.enableVertexAttribArray(globeAttribs.aPosition);
+    gl.vertexAttribPointer(globeAttribs.aPosition, 3, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, globeBuf.normBuf);
+    gl.enableVertexAttribArray(globeAttribs.aNormal);
+    gl.vertexAttribPointer(globeAttribs.aNormal, 3, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, globeBuf.uvBuf);
+    gl.enableVertexAttribArray(globeAttribs.aUv);
+    gl.vertexAttribPointer(globeAttribs.aUv, 2, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, globeBuf.idxBuf);
+    gl.drawElements(gl.TRIANGLES, globeBuf.count, gl.UNSIGNED_SHORT, 0);
+
+    // ---- Atmosphere rim glow ------------------------------------------------
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+    gl.depthMask(false);
+    gl.useProgram(atmoProgram);
+    gl.uniformMatrix4fv(atmoUniforms.uProjection, false, projection);
+    gl.uniformMatrix4fv(atmoUniforms.uView, false, view);
+    gl.uniformMatrix4fv(atmoUniforms.uModel, false, animRoot);
+    gl.uniform3fv(atmoUniforms.uCameraPos, camera.eye);
+    gl.uniform3fv(atmoUniforms.uColorA, colors.secondary);
+    gl.uniform3fv(atmoUniforms.uColorB, colors.primary);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, atmoBuf.posBuf);
+    gl.enableVertexAttribArray(atmoAttribs.aPosition);
+    gl.vertexAttribPointer(atmoAttribs.aPosition, 3, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, atmoBuf.normBuf);
+    gl.enableVertexAttribArray(atmoAttribs.aNormal);
+    gl.vertexAttribPointer(atmoAttribs.aNormal, 3, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, atmoBuf.idxBuf);
+    gl.drawElements(gl.TRIANGLES, atmoBuf.count, gl.UNSIGNED_SHORT, 0);
+
+    // ---- Clouds (alpha blend, drawn last) ------------------------------------
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.useProgram(globeProgram);
+    const cloudModel = Mat4.multiply(animRoot, Mat4.rotateY(t * sceneConfig.cloudRotateSpeed));
+    gl.uniformMatrix4fv(globeUniforms.uModel, false, cloudModel);
+    gl.uniform4fv(globeUniforms.uBaseColorFactor, [1, 1, 1, 0.5]);
+    gl.uniform1i(globeUniforms.uHasEmissiveTex, 0);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, cloudTex);
+    gl.uniform1i(globeUniforms.uBaseColorTex, 0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, cloudBuf.posBuf);
+    gl.enableVertexAttribArray(globeAttribs.aPosition);
+    gl.vertexAttribPointer(globeAttribs.aPosition, 3, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, cloudBuf.normBuf);
+    gl.enableVertexAttribArray(globeAttribs.aNormal);
+    gl.vertexAttribPointer(globeAttribs.aNormal, 3, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, cloudBuf.uvBuf);
+    gl.enableVertexAttribArray(globeAttribs.aUv);
+    gl.vertexAttribPointer(globeAttribs.aUv, 2, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cloudBuf.idxBuf);
+    gl.drawElements(gl.TRIANGLES, cloudBuf.count, gl.UNSIGNED_SHORT, 0);
+
     gl.depthMask(true);
     gl.disable(gl.BLEND);
-
-    for (const item of drawList) {
-      if (item.transparent && depthMaskOpen) {
-        gl.enable(gl.BLEND);
-        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-        gl.depthMask(false);
-        depthMaskOpen = false;
-      }
-
-      const model = Mat4.multiply(animRoot, item.combinedBase);
-      gl.uniformMatrix4fv(uniforms.uModel, false, model);
-
-      gl.uniform4fv(uniforms.uBaseColorFactor, item.baseColorFactor);
-      gl.uniform3fv(uniforms.uEmissiveFactor, item.emissiveFactor);
-      gl.uniform1f(uniforms.uEmissiveStrength, item.emissiveStrength);
-
-      if (item.baseColorTex) {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, item.baseColorTex);
-        gl.uniform1i(uniforms.uBaseColorTex, 0);
-        gl.uniform1i(uniforms.uHasBaseColorTex, 1);
-      } else {
-        gl.uniform1i(uniforms.uHasBaseColorTex, 0);
-      }
-      if (item.emissiveTex) {
-        gl.activeTexture(gl.TEXTURE1);
-        gl.bindTexture(gl.TEXTURE_2D, item.emissiveTex);
-        gl.uniform1i(uniforms.uEmissiveTex, 1);
-        gl.uniform1i(uniforms.uHasEmissiveTex, 1);
-      } else {
-        gl.uniform1i(uniforms.uHasEmissiveTex, 0);
-      }
-
-      const b = item.buffers;
-      gl.bindBuffer(gl.ARRAY_BUFFER, b.posBuf);
-      gl.enableVertexAttribArray(attribs.aPosition);
-      gl.vertexAttribPointer(attribs.aPosition, 3, gl.FLOAT, false, 0, 0);
-
-      if (b.normBuf) {
-        gl.bindBuffer(gl.ARRAY_BUFFER, b.normBuf);
-        gl.enableVertexAttribArray(attribs.aNormal);
-        gl.vertexAttribPointer(attribs.aNormal, 3, gl.FLOAT, false, 0, 0);
-      } else {
-        gl.disableVertexAttribArray(attribs.aNormal);
-        gl.vertexAttrib3f(attribs.aNormal, 0, 0, 1);
-      }
-
-      if (b.uvBuf) {
-        gl.bindBuffer(gl.ARRAY_BUFFER, b.uvBuf);
-        gl.enableVertexAttribArray(attribs.aUv);
-        gl.vertexAttribPointer(attribs.aUv, 2, gl.FLOAT, false, 0, 0);
-      } else {
-        gl.disableVertexAttribArray(attribs.aUv);
-        gl.vertexAttrib2f(attribs.aUv, 0, 0);
-      }
-
-      if (b.hasIndices) {
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, b.idxBuf);
-        gl.drawElements(gl.TRIANGLES, b.count, b.useUint16 ? gl.UNSIGNED_SHORT : gl.UNSIGNED_INT, 0);
-      } else {
-        gl.drawArrays(gl.TRIANGLES, 0, b.count);
-      }
-    }
   }
 
   return { render };
@@ -706,7 +769,7 @@ function hexToRgbArray(hex) {
 }
 
 /* ============================================================================
- * 6. UI wiring: progress bar, telemetry, message ticker, resize, boot.
+ * 8. UI wiring: progress bar, telemetry, message ticker, resize, boot.
  * ==========================================================================*/
 function applyThemeCSSVars(colors) {
   const root = document.documentElement;
@@ -752,7 +815,6 @@ function setupMessageTicker(el, messages, intervalMs) {
     el.classList.remove('visible');
     window.setTimeout(() => {
       el.textContent = order[i];
-      // force reflow so the transition re-triggers
       void el.offsetWidth;
       el.classList.add('visible');
     }, 250);
@@ -815,7 +877,7 @@ function setupProgress(cfg) {
   requestAnimationFrame(tick);
 }
 
-async function boot() {
+function boot() {
   applyThemeCSSVars(CONFIG.colors);
 
   document.getElementById('cpls-title').textContent = CONFIG.title;
@@ -823,9 +885,7 @@ async function boot() {
   document.getElementById('cpls-subtitle').textContent = CONFIG.subtitle;
 
   const logo = document.getElementById('cpls-logo');
-  logo.addEventListener('error', () => {
-    logo.style.display = 'none';
-  });
+  logo.addEventListener('error', () => { logo.style.display = 'none'; });
 
   setupMessageTicker(document.getElementById('cpls-message'), CONFIG.messages, CONFIG.messageIntervalMs);
   setupProgress(CONFIG);
@@ -840,10 +900,6 @@ async function boot() {
   }
 
   try {
-    if (typeof CPLS_MODEL_B64 === 'undefined') {
-      throw new Error('Model data (js/model-data.js) was not loaded.');
-    }
-
     const sceneConfig = Object.assign({}, CONFIG.scene, {
       colorsRGB: {
         primary: hexToRgbArray(CONFIG.colors.primaryNeon),
@@ -852,12 +908,10 @@ async function boot() {
     });
 
     resizeCanvas();
-    const scene = await initScene(canvas, CPLS_MODEL_B64, sceneConfig);
+    const scene = initProceduralScene(canvas, sceneConfig);
 
     window.addEventListener('resize', resizeCanvas);
-    if (window.ResizeObserver) {
-      new ResizeObserver(resizeCanvas).observe(canvas);
-    }
+    if (window.ResizeObserver) new ResizeObserver(resizeCanvas).observe(canvas);
 
     const clockStart = performance.now();
     function frame(now) {
